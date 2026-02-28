@@ -255,6 +255,12 @@ function checkNpmOutdated() {
 
   log('Checking npm outdated…');
 
+  // Read dependency type directly from package.json — npm outdated --json
+  // does not include a `type` field in its output.
+  const pkg         = readPluginFile('package.json');
+  const runtimeDeps = new Set(Object.keys(pkg?.dependencies     || {}));
+  const devDeps     = new Set(Object.keys(pkg?.devDependencies  || {}));
+
   // spawnSync used deliberately: npm outdated exits 1 when packages are outdated,
   // which would cause execSync to throw. spawnSync returns the output regardless.
   const result = spawnSync('npm', ['outdated', '--json'], {
@@ -270,14 +276,15 @@ function checkNpmOutdated() {
     return;
   }
 
-  for (const [pkg, info] of Object.entries(outdated)) {
-    const isMajor    = majorOf(info.latest) > majorOf(info.current);
-    const isRuntime  = info.type === 'dependencies';
-    const tier       = isMajor && isRuntime ? T.ACTION : T.MONITOR;
+  for (const [name, info] of Object.entries(outdated)) {
+    const isMajor   = majorOf(info.latest) > majorOf(info.current);
+    const isRuntime = runtimeDeps.has(name);
+    const depType   = isRuntime ? 'dependency' : devDeps.has(name) ? 'devDependency' : 'unknown';
+    const tier      = isMajor && isRuntime ? T.ACTION : T.MONITOR;
 
     find(tier, 'npm dependencies',
-      `${pkg}: ${info.current} → ${info.latest}${isMajor ? '  (MAJOR)' : ''}`,
-      `Type: ${info.type || 'unknown'}`);
+      `${name}: ${info.current} → ${info.latest}${isMajor ? '  (MAJOR)' : ''}`,
+      `Type: ${depType}`);
   }
 }
 
