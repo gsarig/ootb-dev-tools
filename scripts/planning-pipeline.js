@@ -264,6 +264,32 @@ async function fetchGitHubPRs() {
 }
 
 // ---------------------------------------------------------------------------
+// Fetch: GitHub Dependabot security alerts
+// ---------------------------------------------------------------------------
+
+async function fetchSecurityAlerts() {
+  log(`Fetching Dependabot security alerts from ${REPO_OWNER}/${REPO_NAME}…`);
+  try {
+    const raw = execSync(
+      `gh api repos/${REPO_OWNER}/${REPO_NAME}/dependabot/alerts` +
+      ` --jq '[.[] | select(.state == "open")]'`,
+      { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
+    );
+    const alerts = JSON.parse(raw || '[]');
+    return alerts.map(a => ({
+      number:   a.number,
+      severity: (a.security_advisory?.severity || 'unknown').toLowerCase(),
+      package:  a.dependency?.package?.name || 'unknown',
+      summary:  a.security_advisory?.summary || '',
+      url:      a.html_url || '',
+    }));
+  } catch (err) {
+    console.log(`${C.yellow}  Security alerts: ${err.message}${C.reset}`);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Fetch: WordPress.org forum topics (unresolved only)
 // ---------------------------------------------------------------------------
 
@@ -374,7 +400,14 @@ function clusterTitle(cluster) {
 // Report
 // ---------------------------------------------------------------------------
 
-function printReport(ranked, githubCount, prCount, forumCount, dependabotPRs, compatFindings) {
+function severityColour(sev) {
+  if (sev === 'critical') return C.red;
+  if (sev === 'high')     return C.red;
+  if (sev === 'medium')   return C.yellow;
+  return C.dim;
+}
+
+function printReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings) {
   const date = new Date().toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
@@ -426,6 +459,22 @@ function printReport(ranked, githubCount, prCount, forumCount, dependabotPRs, co
     }
   }
 
+  if (securityAlerts.length > 0) {
+    const sevOrder  = ['critical', 'high', 'medium', 'low', 'unknown'];
+    const sorted    = [...securityAlerts].sort(
+      (a, b) => sevOrder.indexOf(a.severity) - sevOrder.indexOf(b.severity)
+    );
+    console.log(`${C.dim}${'─'.repeat(56)}${C.reset}`);
+    console.log(`${C.red}${C.bold}SECURITY ALERTS (${securityAlerts.length} open)${C.reset}\n`);
+    sorted.forEach(a => {
+      const col = severityColour(a.severity);
+      console.log(`  ${col}${C.bold}[${a.severity.toUpperCase()}]${C.reset} ${a.package}`);
+      console.log(`  ${C.dim}${a.summary}${C.reset}`);
+      console.log(`  ${C.dim}${a.url}${C.reset}`);
+    });
+    console.log();
+  }
+
   if (compatFindings.length > 0) {
     const actionItems = compatFindings.filter(f => f.level === 'action');
     const watchItems  = compatFindings.filter(f => f.level === 'watch');
@@ -452,7 +501,7 @@ function printReport(ranked, githubCount, prCount, forumCount, dependabotPRs, co
 // Save report to file
 // ---------------------------------------------------------------------------
 
-function saveReport(ranked, githubCount, prCount, forumCount, dependabotPRs, compatFindings) {
+function saveReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings) {
   const date      = new Date().toISOString().split('T')[0];
   const clustered = ranked.filter(r => r.cluster.length > 1 || r.score >= 20);
   const isolated  = ranked.filter(r => r.cluster.length === 1 && r.score < 20);
@@ -491,6 +540,18 @@ function saveReport(ranked, githubCount, prCount, forumCount, dependabotPRs, com
       lines.push(`  [${src}] ${i.title}`);
       lines.push(`  ${i.url}`);
     });
+    lines.push('');
+  }
+
+  if (securityAlerts.length > 0) {
+    lines.push(`SECURITY ALERTS (${securityAlerts.length} open)`, '');
+    const sevOrder = ['critical', 'high', 'medium', 'low', 'unknown'];
+    [...securityAlerts]
+      .sort((a, b) => sevOrder.indexOf(a.severity) - sevOrder.indexOf(b.severity))
+      .forEach(a => {
+        lines.push(`  [${a.severity.toUpperCase()}] ${a.package}: ${a.summary}`);
+        lines.push(`  ${a.url}`);
+      });
     lines.push('');
   }
 
@@ -571,11 +632,13 @@ async function main() {
     githubIssues,
     { communityPRs, dependabotPRs },
     forumTopics,
+    securityAlerts,
     compatFindings,
   ] = await Promise.all([
     fetchGitHubIssues(),
     fetchGitHubPRs(),
     fetchForumTopics(),
+    fetchSecurityAlerts(),
     fetchCompatibility(),
   ]);
 
@@ -587,7 +650,7 @@ async function main() {
 
   const allItems = [...githubIssues, ...communityPRs, ...forumTopics];
 
-  if (allItems.length === 0 && dependabotPRs.length === 0 && compatFindings.length === 0) {
+  if (allItems.length === 0 && dependabotPRs.length === 0 && securityAlerts.length === 0 && compatFindings.length === 0) {
     console.log(`${C.yellow}No items found. Check your credentials and PLUGIN_SLUG.${C.reset}\n`);
     process.exit(1);
   }
@@ -600,8 +663,8 @@ async function main() {
     })
     .sort((a, b) => b.score - a.score);
 
-  printReport(ranked, githubCount, prCount, forumCount, dependabotPRs, compatFindings);
-  saveReport(ranked, githubCount, prCount, forumCount, dependabotPRs, compatFindings);
+  printReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings);
+  saveReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings);
 }
 
 main().catch(err => {

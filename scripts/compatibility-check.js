@@ -289,6 +289,100 @@ function checkNpmOutdated() {
 }
 
 // ---------------------------------------------------------------------------
+// Check: npm audit (known vulnerabilities)
+// ---------------------------------------------------------------------------
+
+function checkNpmAudit() {
+  if (!PLUGIN_PATH) return; // already noted in npm outdated check
+
+  log('Checking npm audit…');
+
+  // spawnSync used deliberately: npm audit exits 1 when vulnerabilities are found.
+  const result = spawnSync('npm', ['audit', '--json'], {
+    cwd: PLUGIN_PATH,
+    encoding: 'utf8',
+  });
+
+  let data = {};
+  try { data = JSON.parse(result.stdout || '{}'); } catch { return; }
+
+  const vulns = data.vulnerabilities || {};
+  const meta  = data.metadata?.vulnerabilities || {};
+
+  if ((meta.total || Object.keys(vulns).length) === 0) {
+    find(T.OK, 'npm audit', 'No known vulnerabilities found.');
+    return;
+  }
+
+  // Only report ROOT vulnerabilities — packages where the advisory is direct
+  // (via[] contains an object with a title), not transitive cascades (via[] is strings).
+  // This avoids listing every package that depends on a vulnerable transitive dep.
+  const rootVulns = Object.entries(vulns).filter(([, v]) =>
+    (v.via || []).some(entry => typeof entry === 'object' && entry.title)
+  );
+
+  const counts = { critical: 0, high: 0, moderate: 0, low: 0, info: 0 };
+  for (const [, v] of rootVulns) {
+    const sev = (v.severity || 'info').toLowerCase();
+    if (sev in counts) counts[sev]++;
+  }
+
+  const parts = Object.entries(counts)
+    .filter(([, n]) => n > 0)
+    .map(([s, n]) => `${n} ${s}`);
+  const total   = rootVulns.length;
+  const summary = `${total} root ${total === 1 ? 'vulnerability' : 'vulnerabilities'} (${parts.join(', ')}) — ${meta.total || Object.keys(vulns).length} total including transitive`;
+
+  const tier = (counts.critical > 0 || counts.high > 0) ? T.ACTION : T.MONITOR;
+  find(tier, 'npm audit', summary, 'Run `npm audit` in the plugin directory for full details.');
+
+  // Surface each root vulnerability individually
+  for (const [name, v] of rootVulns) {
+    const sev   = (v.severity || '').toLowerCase();
+    const title = v.via.find(e => typeof e === 'object')?.title || '';
+    if (sev === 'critical' || sev === 'high') {
+      find(T.ACTION, 'npm audit', `${name} — ${sev.toUpperCase()}`, title);
+    } else {
+      find(T.MONITOR, 'npm audit', `${name} — ${sev.toUpperCase()}`, title);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Check: Composer audit (known vulnerabilities)
+// ---------------------------------------------------------------------------
+
+function checkComposerAudit() {
+  if (!PLUGIN_PATH) return;
+
+  log('Checking Composer audit…');
+
+  const result = spawnSync('composer', ['audit', '--format=json', '--no-dev'], {
+    cwd: PLUGIN_PATH,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  if (result.error || result.status === 127) return; // composer not installed
+
+  let data = { advisories: {} };
+  try { data = JSON.parse(result.stdout || '{"advisories":{}}'); } catch { return; }
+
+  const advisories = Object.values(data.advisories || {}).flat();
+
+  if (advisories.length === 0) {
+    find(T.OK, 'Composer audit', 'No known vulnerabilities found.');
+    return;
+  }
+
+  for (const a of advisories) {
+    find(T.ACTION, 'Composer audit',
+      `${a.packageName}: ${a.title}`,
+      a.cve ? `CVE: ${a.cve}  ${a.link || ''}` : (a.link || ''));
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Check: Composer runtime dependencies
 // ---------------------------------------------------------------------------
 
@@ -424,7 +518,9 @@ async function main() {
   await checkGutenberg();
   await checkPHP();
   await checkLeaflet();
+  checkNpmAudit();
   checkNpmOutdated();
+  checkComposerAudit();
   checkComposer();
 
   printReport();
