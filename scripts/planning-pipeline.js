@@ -30,8 +30,8 @@ const REPO_OWNER  = env.REPO_OWNER  || 'gsarig';
 const REPO_NAME   = env.REPO_NAME   || 'ootb-openstreetmap';
 const PLUGIN_SLUG = env.PLUGIN_SLUG || REPO_NAME;
 
-const FORUM_PAGES  = 5;   // pages to scan (~15 topics each)
-const MAX_AGE_DAYS = 180; // ignore items older than this
+const FORUM_MAX_PAGES = 20; // feed returns 3 items/page; 20 pages = up to 60 topics
+const MAX_AGE_DAYS    = 180; // ignore items older than this
 const SIMILARITY_THRESHOLD = 0.2; // Jaccard — items sharing ≥20% keywords are grouped
 
 // ---------------------------------------------------------------------------
@@ -218,60 +218,57 @@ async function fetchGitHubIssues() {
 }
 
 // ---------------------------------------------------------------------------
-// Fetch: WordPress.org forum topics
+// Fetch: WordPress.org forum topics (unresolved only)
 // ---------------------------------------------------------------------------
 
-function parseForumHTML(html) {
-  const topics = [];
+function parseRSSFeed(xml) {
+  const items = [];
+  const blocks = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
 
-  // Each topic is a <ul id="bbp-topic-NNN" class="...type-topic...">
-  // Resolved topics have "status-resolved" in the class.
-  // We split on topic boundaries and process each block.
-  const blocks = html.split(/<ul[^>]+class="[^"]*type-topic/);
+  for (const block of blocks) {
+    const titleM = block.match(/<title><!\[CDATA\[([^\]]+)/) || block.match(/<title>([^<]+)/);
+    const linkM  = block.match(/<link>([^<]+)/);
+    const dateM  = block.match(/<pubDate>([^<]+)/);
+    const descM  = block.match(/<description><!\[CDATA\[([\s\S]*?)\]\]>/);
 
-  for (let i = 1; i < blocks.length; i++) {
-    const block = blocks[i];
+    if (!titleM || !linkM) continue;
 
-    // Skip resolved topics
-    if (/status-resolved/.test(block.slice(0, 60))) continue;
+    const description = descM ? descM[1] : '';
+    const replyM      = description.match(/Replies:\s*(\d+)/i);
 
-    // Title + URL — the permalink anchor
-    const titleM = block.match(
-      /href="(https:\/\/wordpress\.org\/support\/topic\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/
-    );
-    if (!titleM) continue;
-    const url   = titleM[1];
-    const title = stripHTML(titleM[2]).trim();
-    if (!title || title.length < 4) continue;
-
-    // Reply count
-    const replyM    = block.match(/bbp-topic-reply-count[^>]*>\s*(\d+)/);
-    const replyCount = replyM ? parseInt(replyM[1], 10) : 0;
-
-    // Date — from a <time datetime="..."> element
-    const dateM = block.match(/datetime="([^"]+)"/);
-    const date  = dateM ? dateM[1] : new Date().toISOString();
-
-    topics.push({ url, title, replyCount, date });
+    items.push({
+      title:      stripHTML(titleM[1]).trim(),
+      url:        linkM[1].trim(),
+      date:       dateM ? new Date(dateM[1].trim()).toISOString() : new Date().toISOString(),
+      replyCount: replyM ? parseInt(replyM[1], 10) : 0,
+      excerpt:    stripHTML(description).replace(/Replies:\s*\d+/i, '').trim().slice(0, 300),
+    });
   }
 
-  return topics;
+  return items;
 }
 
 async function fetchForumTopics() {
-  log(`Fetching WordPress.org forum topics for ${PLUGIN_SLUG}…`);
-  const base    = `https://wordpress.org/support/plugin/${PLUGIN_SLUG}/`;
+  log(`Fetching unresolved forum topics for ${PLUGIN_SLUG}…`);
+  const base    = `https://wordpress.org/support/plugin/${PLUGIN_SLUG}/unresolved/feed/`;
   const results = [];
 
-  for (let page = 1; page <= FORUM_PAGES; page++) {
-    const url = page === 1 ? base : `${base}page/${page}/`;
+  const seen = new Set();
+
+  for (let page = 1; page <= FORUM_MAX_PAGES; page++) {
+    const url = page === 1 ? base : `${base}?paged=${page}`;
     try {
-      const html   = await fetchText(url);
-      const topics = parseForumHTML(html);
+      const xml    = await fetchText(url);
+      const topics = parseRSSFeed(xml);
       if (topics.length === 0) break;
-      results.push(...topics);
-      // Polite pause between pages
-      if (page < FORUM_PAGES) await new Promise(r => setTimeout(r, 500));
+
+      // WordPress.org repeats the last real page when paged= exceeds the total.
+      // Stop when every item on the page is already known.
+      const newTopics = topics.filter(t => !seen.has(t.url));
+      if (newTopics.length === 0) break;
+
+      newTopics.forEach(t => seen.add(t.url));
+      results.push(...newTopics);
     } catch (err) {
       log(`Forum page ${page}: ${err.message}`);
       break;
@@ -287,7 +284,8 @@ async function fetchForumTopics() {
       url:        t.url,
       date:       t.date,
       replyCount: t.replyCount,
-      keywords:   extractKeywords(t.title),
+      // Use title + excerpt for richer keyword extraction
+      keywords:   extractKeywords(`${t.title} ${t.excerpt}`),
     }));
 }
 
