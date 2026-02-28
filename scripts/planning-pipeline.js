@@ -184,7 +184,7 @@ function scoreCluster(cluster, type) {
 }
 
 // ---------------------------------------------------------------------------
-// Fetch: GitHub issues
+// Fetch: GitHub issues and pull requests
 // ---------------------------------------------------------------------------
 
 async function fetchGitHubIssues() {
@@ -212,8 +212,54 @@ async function fetchGitHubIssues() {
         };
       });
   } catch (err) {
-    console.log(`${C.yellow}  GitHub: ${err.message}${C.reset}`);
+    console.log(`${C.yellow}  GitHub issues: ${err.message}${C.reset}`);
     return [];
+  }
+}
+
+/**
+ * Returns { communityPRs, dependabotPRs }
+ * Community PRs participate in clustering (source: 'pr').
+ * Dependabot PRs are shown separately — they are maintenance, not planning.
+ */
+async function fetchGitHubPRs() {
+  log(`Fetching open PRs from ${REPO_OWNER}/${REPO_NAME}…`);
+  try {
+    const raw = execSync(
+      `gh pr list --repo ${REPO_OWNER}/${REPO_NAME} --state open --limit 100 ` +
+      `--json number,title,body,labels,createdAt,updatedAt,url,isDraft,author`,
+      { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
+    );
+    const all = JSON.parse(raw || '[]');
+
+    const dependabotPRs = all.filter(pr =>
+      pr.author?.login === 'app/dependabot' ||
+      pr.author?.login?.includes('dependabot') ||
+      (pr.labels || []).some(l => l.name === 'dependencies')
+    );
+
+    const communityPRs = all
+      .filter(pr => !dependabotPRs.includes(pr))
+      .filter(pr => daysAgo(pr.updatedAt) <= MAX_AGE_DAYS)
+      .map(pr => {
+        const text = `${pr.title} ${stripHTML(pr.body || '')}`;
+        return {
+          source:   'pr',
+          id:       `#${pr.number}`,
+          title:    pr.title,
+          url:      pr.url,
+          date:     pr.updatedAt,
+          isDraft:  pr.isDraft,
+          author:   pr.author?.login || 'unknown',
+          labels:   (pr.labels || []).map(l => l.name),
+          keywords: extractKeywords(text),
+        };
+      });
+
+    return { communityPRs, dependabotPRs };
+  } catch (err) {
+    console.log(`${C.yellow}  GitHub PRs: ${err.message}${C.reset}`);
+    return { communityPRs: [], dependabotPRs: [] };
   }
 }
 
@@ -328,7 +374,7 @@ function clusterTitle(cluster) {
 // Report
 // ---------------------------------------------------------------------------
 
-function printReport(ranked, githubCount, forumCount) {
+function printReport(ranked, githubCount, prCount, forumCount, dependabotPRs) {
   const date = new Date().toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
@@ -338,7 +384,7 @@ function printReport(ranked, githubCount, forumCount) {
   console.log(`${C.bold}  ${REPO_OWNER}/${REPO_NAME}${C.reset}`);
   console.log(`${C.bold}${'━'.repeat(56)}${C.reset}\n`);
   console.log(
-    `${C.dim}Analysed: ${githubCount} open GitHub issues · ` +
+    `${C.dim}Analysed: ${githubCount} open issues · ${prCount} community PRs · ` +
     `${forumCount} unresolved forum topics (last ${MAX_AGE_DAYS / 30} months)${C.reset}\n`
   );
 
@@ -346,35 +392,45 @@ function printReport(ranked, githubCount, forumCount) {
   const isolated  = ranked.filter(r => r.cluster.length === 1 && r.score < 20);
 
   if (clustered.length === 0 && ranked.length === 0) {
-    console.log(`${C.green}No open issues or forum topics found.${C.reset}\n`);
-    return;
-  }
+    console.log(`${C.green}No open issues, PRs, or forum topics found.${C.reset}\n`);
+  } else {
+    if (clustered.length > 0) {
+      console.log(`${C.bold}PROPOSED PRIORITIES${C.reset}\n`);
+      clustered.forEach(({ cluster, score, type }, idx) => {
+        const title  = clusterTitle(cluster);
+        const gh     = cluster.filter(i => i.source === 'github');
+        const prs    = cluster.filter(i => i.source === 'pr');
+        const forum  = cluster.filter(i => i.source === 'forum');
+        const latest = cluster.reduce((d, i) => (i.date > d ? i.date : d), cluster[0].date);
+        const colour = type === 'Bug' ? C.red : type === 'Feature Request' ? C.cyan : C.yellow;
 
-  if (clustered.length > 0) {
-    console.log(`${C.bold}PROPOSED PRIORITIES${C.reset}\n`);
-    clustered.forEach(({ cluster, score, type }, idx) => {
-      const title   = clusterTitle(cluster);
-      const gh      = cluster.filter(i => i.source === 'github');
-      const forum   = cluster.filter(i => i.source === 'forum');
-      const latest  = cluster.reduce((d, i) => (i.date > d ? i.date : d), cluster[0].date);
-      const colour  = type === 'Bug' ? C.red : type === 'Feature Request' ? C.cyan : C.yellow;
+        console.log(`${C.bold}[${idx + 1}] ${colour}${type}${C.reset}${C.bold}: ${title}${C.reset}`);
+        console.log(`    Score: ${score} | ${cluster.length} item(s) — ${gh.length} issue · ${prs.length} PR · ${forum.length} forum`);
+        if (gh.length)   console.log(`    Issue:   ${gh.map(i => i.id).join(', ')}`);
+        prs.forEach(i  => console.log(`    PR:      ${i.id} — ${i.title}${i.isDraft ? ' [DRAFT]' : ''} (@${i.author})`));
+        forum.forEach(i => console.log(`    Forum:   ${i.url}` + (i.replyCount ? ` (${i.replyCount} replies)` : '')));
+        console.log(`    Most recent: ${formatAge(latest)}`);
+        console.log();
+      });
+    }
 
-      console.log(`${C.bold}[${idx + 1}] ${colour}${type}${C.reset}${C.bold}: ${title}${C.reset}`);
-      console.log(`    Score: ${score} | ${cluster.length} item(s) — ${gh.length} GitHub · ${forum.length} forum`);
-      if (gh.length)    console.log(`    GitHub:  ${gh.map(i => i.id).join(', ')}`);
-      forum.forEach(i => console.log(`    Forum:   ${i.url}` + (i.replyCount ? ` (${i.replyCount} replies)` : '')));
-      console.log(`    Most recent: ${formatAge(latest)}`);
+    if (isolated.length > 0) {
+      console.log(`${C.dim}${'─'.repeat(56)}${C.reset}`);
+      console.log(`${C.dim}ISOLATED ITEMS (single report, below threshold)${C.reset}\n`);
+      isolated.forEach(({ cluster }) => {
+        const i   = cluster[0];
+        const src = i.source === 'github' ? `Issue ${i.id}` : i.source === 'pr' ? `PR ${i.id}` : 'Forum';
+        console.log(`${C.dim}  [${src}] ${i.title} — ${formatAge(i.date)}${C.reset}`);
+      });
       console.log();
-    });
+    }
   }
 
-  if (isolated.length > 0) {
+  if (dependabotPRs.length > 0) {
     console.log(`${C.dim}${'─'.repeat(56)}${C.reset}`);
-    console.log(`${C.dim}ISOLATED ITEMS (single report, below threshold)${C.reset}\n`);
-    isolated.forEach(({ cluster }) => {
-      const i   = cluster[0];
-      const src = i.source === 'github' ? `GitHub ${i.id}` : 'Forum';
-      console.log(`${C.dim}  [${src}] ${i.title} — ${formatAge(i.date)}${C.reset}`);
+    console.log(`${C.dim}DEPENDABOT PRs (${dependabotPRs.length} open — review and merge separately)${C.reset}\n`);
+    dependabotPRs.forEach(pr => {
+      console.log(`${C.dim}  #${pr.number} ${pr.title}${C.reset}`);
     });
     console.log();
   }
@@ -386,7 +442,7 @@ function printReport(ranked, githubCount, forumCount) {
 // Save report to file
 // ---------------------------------------------------------------------------
 
-function saveReport(ranked, githubCount, forumCount) {
+function saveReport(ranked, githubCount, prCount, forumCount, dependabotPRs) {
   const date      = new Date().toISOString().split('T')[0];
   const clustered = ranked.filter(r => r.cluster.length > 1 || r.score >= 20);
   const isolated  = ranked.filter(r => r.cluster.length === 1 && r.score < 20);
@@ -394,7 +450,7 @@ function saveReport(ranked, githubCount, forumCount) {
   const lines = [
     `PLANNING REPORT — ${date}`,
     `Repo: ${REPO_OWNER}/${REPO_NAME}`,
-    `Analysed: ${githubCount} GitHub issues · ${forumCount} forum topics`,
+    `Analysed: ${githubCount} open issues · ${prCount} community PRs · ${forumCount} forum topics`,
     '',
   ];
 
@@ -403,13 +459,15 @@ function saveReport(ranked, githubCount, forumCount) {
     clustered.forEach(({ cluster, score, type }, idx) => {
       const title  = clusterTitle(cluster);
       const gh     = cluster.filter(i => i.source === 'github');
+      const prs    = cluster.filter(i => i.source === 'pr');
       const forum  = cluster.filter(i => i.source === 'forum');
       const latest = cluster.reduce((d, i) => (i.date > d ? i.date : d), cluster[0].date);
 
       lines.push(`[${idx + 1}] ${type}: ${title}`);
       lines.push(`    Score: ${score}`);
-      if (gh.length)    lines.push(`    GitHub:  ${gh.map(i => `${i.id}  ${i.url}`).join('\n             ')}`);
-      forum.forEach(i  => lines.push(`    Forum:   ${i.url}${i.replyCount ? ` (${i.replyCount} replies)` : ''}`));
+      if (gh.length)  lines.push(`    Issue:  ${gh.map(i => `${i.id}  ${i.url}`).join('\n            ')}`);
+      prs.forEach(i  => lines.push(`    PR:     ${i.id}  ${i.url}${i.isDraft ? ' [DRAFT]' : ''} (@${i.author})`));
+      forum.forEach(i => lines.push(`    Forum:  ${i.url}${i.replyCount ? ` (${i.replyCount} replies)` : ''}`));
       lines.push(`    Most recent: ${formatAge(latest)}`);
       lines.push('');
     });
@@ -419,9 +477,16 @@ function saveReport(ranked, githubCount, forumCount) {
     lines.push('ISOLATED ITEMS', '');
     isolated.forEach(({ cluster }) => {
       const i = cluster[0];
-      lines.push(`  [${i.source === 'github' ? `GitHub ${i.id}` : 'Forum'}] ${i.title}`);
+      const src = i.source === 'github' ? `Issue ${i.id}` : i.source === 'pr' ? `PR ${i.id}` : 'Forum';
+      lines.push(`  [${src}] ${i.title}`);
       lines.push(`  ${i.url}`);
     });
+    lines.push('');
+  }
+
+  if (dependabotPRs.length > 0) {
+    lines.push(`DEPENDABOT PRs (${dependabotPRs.length} open)`, '');
+    dependabotPRs.forEach(pr => lines.push(`  #${pr.number}  ${pr.title}`));
   }
 
   fsys.writeFileSync(path.join(__dirname, '..', 'planning-report.tmp'), lines.join('\n'), 'utf8');
@@ -435,19 +500,21 @@ async function main() {
   console.log(`\n${C.bold}Running planning pipeline…${C.reset}`);
   console.log(`${C.dim}Repo: ${REPO_OWNER}/${REPO_NAME} · Forum slug: ${PLUGIN_SLUG}${C.reset}\n`);
 
-  const [githubIssues, forumTopics] = await Promise.all([
+  const [githubIssues, { communityPRs, dependabotPRs }, forumTopics] = await Promise.all([
     fetchGitHubIssues(),
+    fetchGitHubPRs(),
     fetchForumTopics(),
   ]);
 
   const githubCount = githubIssues.length;
+  const prCount     = communityPRs.length;
   const forumCount  = forumTopics.length;
 
-  log(`${githubCount} GitHub issues · ${forumCount} forum topics after filtering.\n`);
+  log(`${githubCount} issues · ${prCount} community PRs · ${dependabotPRs.length} dependabot PRs · ${forumCount} forum topics.\n`);
 
-  const allItems = [...githubIssues, ...forumTopics];
+  const allItems = [...githubIssues, ...communityPRs, ...forumTopics];
 
-  if (allItems.length === 0) {
+  if (allItems.length === 0 && dependabotPRs.length === 0) {
     console.log(`${C.yellow}No items found. Check your credentials and PLUGIN_SLUG.${C.reset}\n`);
     process.exit(1);
   }
@@ -460,8 +527,8 @@ async function main() {
     })
     .sort((a, b) => b.score - a.score);
 
-  printReport(ranked, githubCount, forumCount);
-  saveReport(ranked, githubCount, forumCount);
+  printReport(ranked, githubCount, prCount, forumCount, dependabotPRs);
+  saveReport(ranked, githubCount, prCount, forumCount, dependabotPRs);
 }
 
 main().catch(err => {
