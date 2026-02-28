@@ -15,8 +15,11 @@ Then read `tmp/planning-report.tmp`. That file is your primary source of truth.
 ## What the report contains
 
 - **Proposed priorities** — GitHub issues, community PRs, and unresolved WordPress.org forum topics, clustered by keyword similarity and scored by frequency, severity, recency, and cross-source signal
+- **Security alerts** — open Dependabot vulnerability alerts, grouped by package
 - **Compatibility watch** — upcoming WordPress/PHP releases and any dependency updates that may require code changes
 - **Dependabot PRs** — dependency bumps waiting to be reviewed, listed separately
+
+Items marked **⚠ Blocked** are packages that cannot be upgraded yet due to a known compatibility issue recorded in `config/blockers.json`. If a **↻ New release** line appears alongside a blocker, the package has received a new version since the block was added — re-examine whether the obstacle still applies before deciding to defer.
 
 ## Your job
 
@@ -38,6 +41,26 @@ Using the report as input, produce a release proposal for the developer's approv
    - Any known risks or dependencies
 
 **Stop here and present the proposal. Do not create branches, PRs, or any git operations. Wait for approval before proceeding.**
+
+## Recording upgrade blockers
+
+When a dependency upgrade is attempted but causes breakage (e.g. a major Leaflet bump removes an API the plugin uses, or `@wordpress/scripts` 30.x drops a required loader), record it in `config/blockers.json`:
+
+```json
+{
+  "leaflet": {
+    "reason": "Leaflet 2.x removed L.mapbox; plugin must be refactored before upgrading",
+    "since": "2025-01-15",
+    "latestAtBlock": "2.0.0"
+  }
+}
+```
+
+- `reason` — short, plain-English explanation so future sessions understand the constraint
+- `since` — ISO date when the block was discovered
+- `latestAtBlock` — the latest available version at that time; when a newer version appears the report will flag it for a re-check
+
+To **remove** a blocker once the issue is resolved, delete its key from `config/blockers.json`.
 
 ## After approval
 

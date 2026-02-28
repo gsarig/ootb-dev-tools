@@ -27,15 +27,54 @@ const path = require('path');
 // Config
 // ---------------------------------------------------------------------------
 
-const ENV_FILE = path.join(__dirname, '..', '.env');
-const env = loadEnv(ENV_FILE);
+const CONFIG_DIR  = path.join(__dirname, '..', 'config');
+const ENV_FILE    = path.join(__dirname, '..', '.env');
+const env         = loadEnv(ENV_FILE);
 
 const REPO_OWNER  = env.REPO_OWNER  || 'gsarig';
 const REPO_NAME   = env.REPO_NAME   || 'ootb-openstreetmap';
 const PLUGIN_PATH = env.PLUGIN_PATH || null;
 
-// Flag a PHP version as ACTION REQUIRED if EOL is within this many days.
-const PHP_EOL_WARNING_DAYS = 180;
+const settings = JSON.parse(fs.readFileSync(path.join(CONFIG_DIR, 'settings.json'), 'utf8'));
+const PHP_EOL_WARNING_DAYS = settings.phpEolWarningDays;
+
+// ---------------------------------------------------------------------------
+// Upgrade blockers
+// ---------------------------------------------------------------------------
+// config/blockers.json tracks packages that cannot be bumped yet. Each entry
+// records why the upgrade is blocked and the latest version available when the
+// block was added, so a new release can be flagged for a re-check.
+//
+// Schema:
+//   {
+//     "package-name": {
+//       "reason":        "Short explanation of the blocker",
+//       "since":         "YYYY-MM-DD",
+//       "latestAtBlock": "X.Y.Z"
+//     }
+//   }
+
+let BLOCKERS = {};
+try {
+  BLOCKERS = JSON.parse(fs.readFileSync(path.join(CONFIG_DIR, 'blockers.json'), 'utf8'));
+} catch { /* file absent or malformed — treat as no blockers */ }
+
+/**
+ * Returns a multi-line annotation string if pkg is in blockers.json, null otherwise.
+ * latestVersion — the version currently available from the registry / npm outdated.
+ * When it differs from latestAtBlock a re-check prompt is added.
+ */
+function getBlockerNote(pkgName, latestVersion) {
+  const b = BLOCKERS[pkgName];
+  if (!b) return null;
+  const lines = [`⚠ Blocked since ${b.since}: ${b.reason}`];
+  if (latestVersion && b.latestAtBlock && latestVersion !== b.latestAtBlock) {
+    lines.push(
+      `↻ New release (${latestVersion}) available since block was recorded at ${b.latestAtBlock} — re-check whether this resolves the issue`
+    );
+  }
+  return lines.join('\n');
+}
 
 // ---------------------------------------------------------------------------
 // Tiers and colours
@@ -227,13 +266,17 @@ async function checkLeaflet() {
     const latestMajor   = majorOf(latestV);
 
     if (latestMajor > currentMajor) {
+      const note = getBlockerNote('leaflet', latestV);
       find(T.ACTION, 'Leaflet.js',
         `Major update available: ${currentV} → ${latestV}`,
-        'Major versions likely contain breaking changes. Review the changelog before upgrading.');
+        ['Major versions likely contain breaking changes. Review the changelog before upgrading.', note]
+          .filter(Boolean).join('\n'));
     } else if (latestV !== currentV) {
+      const note = getBlockerNote('leaflet', latestV);
       find(T.MONITOR, 'Leaflet.js',
         `Update available: ${currentV} → ${latestV}`,
-        'Minor / patch update — review changelog and test before upgrading.');
+        ['Minor / patch update — review changelog and test before upgrading.', note]
+          .filter(Boolean).join('\n'));
     } else {
       find(T.OK, 'Leaflet.js', `Up to date: ${currentV}`);
     }
@@ -281,10 +324,11 @@ function checkNpmOutdated() {
     const isRuntime = runtimeDeps.has(name);
     const depType   = isRuntime ? 'dependency' : devDeps.has(name) ? 'devDependency' : 'unknown';
     const tier      = isMajor && isRuntime ? T.ACTION : T.MONITOR;
+    const note      = getBlockerNote(name, info.latest);
 
     find(tier, 'npm dependencies',
       `${name}: ${info.current} → ${info.latest}${isMajor ? '  (MAJOR)' : ''}`,
-      `Type: ${depType}`);
+      [`Type: ${depType}`, note].filter(Boolean).join('\n'));
   }
 }
 
@@ -336,15 +380,47 @@ function checkNpmAudit() {
   const tier = (counts.critical > 0 || counts.high > 0) ? T.ACTION : T.MONITOR;
   find(tier, 'npm audit', summary, 'Run `npm audit` in the plugin directory for full details.');
 
-  // Surface each root vulnerability individually
+  // Group root vulnerabilities by their fix package so that one `npm` bump = one task
+  const SEV_ORDER = ['critical', 'high', 'moderate', 'low', 'info'];
+  const fixGroups = new Map();
   for (const [name, v] of rootVulns) {
-    const sev   = (v.severity || '').toLowerCase();
-    const title = v.via.find(e => typeof e === 'object')?.title || '';
-    if (sev === 'critical' || sev === 'high') {
-      find(T.ACTION, 'npm audit', `${name} — ${sev.toUpperCase()}`, title);
+    const fa = v.fixAvailable;
+    let fixKey, fixPkg, fixVersion, isMajor;
+    if (!fa) {
+      fixKey = '__no_fix__'; fixPkg = null; fixVersion = null; isMajor = false;
+    } else if (fa === true) {
+      fixKey = name; fixPkg = name; fixVersion = null; isMajor = false;
     } else {
-      find(T.MONITOR, 'npm audit', `${name} — ${sev.toUpperCase()}`, title);
+      // fa === { name, version, isSemVerMajor }
+      fixKey = fa.name; fixPkg = fa.name; fixVersion = fa.version; isMajor = fa.isSemVerMajor || false;
     }
+    if (!fixGroups.has(fixKey)) fixGroups.set(fixKey, { fixPkg, fixVersion, isMajor, members: [] });
+    const title = v.via.find(e => typeof e === 'object')?.title || '';
+    fixGroups.get(fixKey).members.push({ name, sev: (v.severity || 'info').toLowerCase(), title });
+  }
+
+  for (const [fixKey, { fixPkg, fixVersion, isMajor, members }] of fixGroups) {
+    const worstSev = members.reduce((w, m) => {
+      const wi = SEV_ORDER.indexOf(w), mi = SEV_ORDER.indexOf(m.sev);
+      return (mi !== -1 && (wi === -1 || mi < wi)) ? m.sev : w;
+    }, 'info');
+    const tier = (worstSev === 'critical' || worstSev === 'high') ? T.ACTION : T.MONITOR;
+
+    let message;
+    if (fixKey === '__no_fix__') {
+      message = `No fix available — ${members.map(m => m.name).join(', ')}`;
+    } else if (fixVersion) {
+      message = `Bump ${fixPkg} → ${fixVersion}${isMajor ? ' (MAJOR)' : ''} — fixes ${members.length} ${members.length === 1 ? 'vulnerability' : 'vulnerabilities'}`;
+    } else {
+      message = `Update ${fixPkg} — fixes ${members.length} ${members.length === 1 ? 'vulnerability' : 'vulnerabilities'}`;
+    }
+
+    const memberLines = members.map(m =>
+      `  ${m.name} — ${m.sev.toUpperCase()}${m.title ? ': ' + m.title : ''}`
+    );
+    const note   = fixPkg ? getBlockerNote(fixPkg, fixVersion) : null;
+    const detail = [...memberLines, note].filter(Boolean).join('\n');
+    find(tier, 'npm audit', message, detail);
   }
 }
 
@@ -437,7 +513,7 @@ function printReport() {
     console.log(`${tierColour(tier)}${C.bold}${tier}${C.reset}`);
     for (const f of group) {
       console.log(`  ${C.bold}[${f.category}]${C.reset} ${f.message}`);
-      if (f.detail) console.log(`  ${C.dim}${f.detail}${C.reset}`);
+      if (f.detail) f.detail.split('\n').forEach(line => console.log(`  ${C.dim}${line}${C.reset}`));
     }
     console.log();
   }

@@ -23,16 +23,43 @@ const path = require('path');
 // Config
 // ---------------------------------------------------------------------------
 
-const ENV_FILE   = path.join(__dirname, '..', '.env');
-const env        = loadEnv(ENV_FILE);
+const CONFIG_DIR  = path.join(__dirname, '..', 'config');
+const ENV_FILE    = path.join(__dirname, '..', '.env');
+const env         = loadEnv(ENV_FILE);
 
 const REPO_OWNER  = env.REPO_OWNER  || 'gsarig';
 const REPO_NAME   = env.REPO_NAME   || 'ootb-openstreetmap';
 const PLUGIN_SLUG = env.PLUGIN_SLUG || REPO_NAME;
 
-const FORUM_MAX_PAGES = 20; // feed returns 3 items/page; 20 pages = up to 60 topics
-const MAX_AGE_DAYS    = 180; // ignore items older than this
-const SIMILARITY_THRESHOLD = 0.2; // Jaccard — items sharing ≥20% keywords are grouped
+const settings = JSON.parse(fsys.readFileSync(path.join(CONFIG_DIR, 'settings.json'), 'utf8'));
+const FORUM_MAX_PAGES      = settings.forumMaxPages;      // feed returns 3 items/page
+const MAX_AGE_DAYS         = settings.maxAgeDays;         // ignore items older than this
+const SIMILARITY_THRESHOLD = settings.similarityThreshold; // Jaccard clustering threshold
+
+// ---------------------------------------------------------------------------
+// Upgrade blockers
+// ---------------------------------------------------------------------------
+
+let BLOCKERS = {};
+try {
+  BLOCKERS = JSON.parse(fsys.readFileSync(path.join(CONFIG_DIR, 'blockers.json'), 'utf8'));
+} catch { /* absent or malformed — no blockers */ }
+
+/**
+ * Returns annotation text if pkgName is in config/blockers.json, null otherwise.
+ * When latestVersion differs from latestAtBlock a re-check prompt is appended.
+ */
+function getBlockerNote(pkgName, latestVersion) {
+  const b = BLOCKERS[pkgName];
+  if (!b) return null;
+  const lines = [`⚠ Blocked since ${b.since}: ${b.reason}`];
+  if (latestVersion && b.latestAtBlock && latestVersion !== b.latestAtBlock) {
+    lines.push(
+      `↻ New release (${latestVersion}) available since block was recorded at ${b.latestAtBlock} — re-check`
+    );
+  }
+  return lines.join('\n  ');
+}
 
 // ---------------------------------------------------------------------------
 // Colours
@@ -460,17 +487,42 @@ function printReport(ranked, githubCount, prCount, forumCount, securityAlerts, d
   }
 
   if (securityAlerts.length > 0) {
-    const sevOrder  = ['critical', 'high', 'medium', 'low', 'unknown'];
-    const sorted    = [...securityAlerts].sort(
-      (a, b) => sevOrder.indexOf(a.severity) - sevOrder.indexOf(b.severity)
-    );
+    const sevOrder = ['critical', 'high', 'medium', 'low', 'unknown'];
+    const byPkg    = new Map();
+    for (const a of securityAlerts) {
+      if (!byPkg.has(a.package)) byPkg.set(a.package, []);
+      byPkg.get(a.package).push(a);
+    }
+    const groups = [...byPkg.entries()]
+      .map(([pkg, alerts]) => {
+        const worstSev = alerts.reduce((w, a) => {
+          const wi = sevOrder.indexOf(w), ai = sevOrder.indexOf(a.severity);
+          return (ai !== -1 && (wi === -1 || ai < wi)) ? a.severity : w;
+        }, 'unknown');
+        return { pkg, alerts, worstSev };
+      })
+      .sort((a, b) => sevOrder.indexOf(a.worstSev) - sevOrder.indexOf(b.worstSev));
+
     console.log(`${C.dim}${'─'.repeat(56)}${C.reset}`);
-    console.log(`${C.red}${C.bold}SECURITY ALERTS (${securityAlerts.length} open)${C.reset}\n`);
-    sorted.forEach(a => {
-      const col = severityColour(a.severity);
-      console.log(`  ${col}${C.bold}[${a.severity.toUpperCase()}]${C.reset} ${a.package}`);
-      console.log(`  ${C.dim}${a.summary}${C.reset}`);
-      console.log(`  ${C.dim}${a.url}${C.reset}`);
+    console.log(`${C.red}${C.bold}SECURITY ALERTS (${securityAlerts.length} open · ${groups.length} ${groups.length === 1 ? 'package' : 'packages'})${C.reset}\n`);
+    groups.forEach(({ pkg, alerts, worstSev }) => {
+      const col  = severityColour(worstSev);
+      const note = getBlockerNote(pkg);
+      if (alerts.length === 1) {
+        const a = alerts[0];
+        console.log(`  ${col}${C.bold}[${a.severity.toUpperCase()}]${C.reset} ${pkg}`);
+        console.log(`  ${C.dim}${a.summary}${C.reset}`);
+        console.log(`  ${C.dim}${a.url}${C.reset}`);
+      } else {
+        console.log(`  ${col}${C.bold}[${worstSev.toUpperCase()}]${C.reset} ${pkg} — ${alerts.length} advisories`);
+        [...alerts]
+          .sort((a, b) => sevOrder.indexOf(a.severity) - sevOrder.indexOf(b.severity))
+          .forEach(a => {
+            console.log(`    ${C.dim}[${a.severity.toUpperCase()}] ${a.summary}${C.reset}`);
+            console.log(`    ${C.dim}${a.url}${C.reset}`);
+          });
+      }
+      if (note) note.split('\n').forEach(line => console.log(`    ${C.dim}${line}${C.reset}`));
     });
     console.log();
   }
@@ -480,8 +532,12 @@ function printReport(ranked, githubCount, prCount, forumCount, securityAlerts, d
     const watchItems  = compatFindings.filter(f => f.level === 'watch');
     console.log(`${C.dim}${'─'.repeat(56)}${C.reset}`);
     console.log(`${C.bold}COMPATIBILITY WATCH${C.reset}\n`);
-    actionItems.forEach(f => console.log(`  ${C.red}${C.bold}[ACTION]${C.reset} ${f.text}`));
-    watchItems.forEach(f  => console.log(`  ${C.yellow}[WATCH]${C.reset}  ${f.text}`));
+    const printCompatItem = (f, prefix) => {
+      console.log(prefix + f.text);
+      if (f.note) f.note.split('\n').forEach(line => console.log(`    ${C.dim}${line}${C.reset}`));
+    };
+    actionItems.forEach(f => printCompatItem(f, `  ${C.red}${C.bold}[ACTION]${C.reset} `));
+    watchItems.forEach(f  => printCompatItem(f, `  ${C.yellow}[WATCH]${C.reset}  `));
     console.log();
   }
 
@@ -544,20 +600,49 @@ function saveReport(ranked, githubCount, prCount, forumCount, securityAlerts, de
   }
 
   if (securityAlerts.length > 0) {
-    lines.push(`SECURITY ALERTS (${securityAlerts.length} open)`, '');
     const sevOrder = ['critical', 'high', 'medium', 'low', 'unknown'];
-    [...securityAlerts]
-      .sort((a, b) => sevOrder.indexOf(a.severity) - sevOrder.indexOf(b.severity))
-      .forEach(a => {
-        lines.push(`  [${a.severity.toUpperCase()}] ${a.package}: ${a.summary}`);
+    const byPkg    = new Map();
+    for (const a of securityAlerts) {
+      if (!byPkg.has(a.package)) byPkg.set(a.package, []);
+      byPkg.get(a.package).push(a);
+    }
+    const groups = [...byPkg.entries()]
+      .map(([pkg, alerts]) => {
+        const worstSev = alerts.reduce((w, a) => {
+          const wi = sevOrder.indexOf(w), ai = sevOrder.indexOf(a.severity);
+          return (ai !== -1 && (wi === -1 || ai < wi)) ? a.severity : w;
+        }, 'unknown');
+        return { pkg, alerts, worstSev };
+      })
+      .sort((a, b) => sevOrder.indexOf(a.worstSev) - sevOrder.indexOf(b.worstSev));
+
+    lines.push(`SECURITY ALERTS (${securityAlerts.length} open · ${groups.length} ${groups.length === 1 ? 'package' : 'packages'})`, '');
+    groups.forEach(({ pkg, alerts, worstSev }) => {
+      const note = getBlockerNote(pkg);
+      if (alerts.length === 1) {
+        const a = alerts[0];
+        lines.push(`  [${a.severity.toUpperCase()}] ${pkg}: ${a.summary}`);
         lines.push(`  ${a.url}`);
-      });
+      } else {
+        lines.push(`  [${worstSev.toUpperCase()}] ${pkg} — ${alerts.length} advisories:`);
+        [...alerts]
+          .sort((a, b) => sevOrder.indexOf(a.severity) - sevOrder.indexOf(b.severity))
+          .forEach(a => {
+            lines.push(`    [${a.severity.toUpperCase()}] ${a.summary}`);
+            lines.push(`    ${a.url}`);
+          });
+      }
+      if (note) note.split('\n').forEach(line => lines.push(`    ${line}`));
+    });
     lines.push('');
   }
 
   if (compatFindings.length > 0) {
     lines.push('COMPATIBILITY WATCH', '');
-    compatFindings.forEach(f => lines.push(`  [${f.level.toUpperCase()}] ${f.text}`));
+    compatFindings.forEach(f => {
+      lines.push(`  [${f.level.toUpperCase()}] ${f.text}`);
+      if (f.note) f.note.split('\n').forEach(line => lines.push(`    ${line}`));
+    });
     lines.push('');
   }
 
@@ -608,11 +693,12 @@ async function fetchCompatibility() {
     })() : null;
     const current = pkg?.dependencies?.leaflet || pkg?.devDependencies?.leaflet;
     if (current) {
-      const cur = current.replace(/^[^\d]*/, '');
+      const cur  = current.replace(/^[^\d]*/, '');
+      const note = getBlockerNote('leaflet', latest.version);
       if (parseInt(latest.version) > parseInt(cur)) {
-        findings.push({ level: 'action', text: `Leaflet major update: ${cur} → ${latest.version}` });
+        findings.push({ level: 'action', text: `Leaflet major update: ${cur} → ${latest.version}`, note });
       } else if (latest.version !== cur) {
-        findings.push({ level: 'watch', text: `Leaflet update available: ${cur} → ${latest.version}` });
+        findings.push({ level: 'watch', text: `Leaflet update available: ${cur} → ${latest.version}`, note });
       }
     }
   } catch { /* non-fatal */ }

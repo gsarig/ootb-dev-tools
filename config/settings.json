@@ -1,0 +1,6 @@
+{
+  "phpEolWarningDays": 180,
+  "forumMaxPages": 20,
+  "maxAgeDays": 180,
+  "similarityThreshold": 0.2
+}
