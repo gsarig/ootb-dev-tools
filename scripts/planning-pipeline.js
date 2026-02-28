@@ -374,7 +374,7 @@ function clusterTitle(cluster) {
 // Report
 // ---------------------------------------------------------------------------
 
-function printReport(ranked, githubCount, prCount, forumCount, dependabotPRs) {
+function printReport(ranked, githubCount, prCount, forumCount, dependabotPRs, compatFindings) {
   const date = new Date().toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
@@ -426,6 +426,16 @@ function printReport(ranked, githubCount, prCount, forumCount, dependabotPRs) {
     }
   }
 
+  if (compatFindings.length > 0) {
+    const actionItems = compatFindings.filter(f => f.level === 'action');
+    const watchItems  = compatFindings.filter(f => f.level === 'watch');
+    console.log(`${C.dim}${'─'.repeat(56)}${C.reset}`);
+    console.log(`${C.bold}COMPATIBILITY WATCH${C.reset}\n`);
+    actionItems.forEach(f => console.log(`  ${C.red}${C.bold}[ACTION]${C.reset} ${f.text}`));
+    watchItems.forEach(f  => console.log(`  ${C.yellow}[WATCH]${C.reset}  ${f.text}`));
+    console.log();
+  }
+
   if (dependabotPRs.length > 0) {
     console.log(`${C.dim}${'─'.repeat(56)}${C.reset}`);
     console.log(`${C.dim}DEPENDABOT PRs (${dependabotPRs.length} open — review and merge separately)${C.reset}\n`);
@@ -435,14 +445,14 @@ function printReport(ranked, githubCount, prCount, forumCount, dependabotPRs) {
     console.log();
   }
 
-  console.log(`${C.dim}Full report saved to planning-report.tmp${C.reset}\n`);
+  console.log(`${C.dim}Full report saved to tmp/planning-report.tmp${C.reset}\n`);
 }
 
 // ---------------------------------------------------------------------------
 // Save report to file
 // ---------------------------------------------------------------------------
 
-function saveReport(ranked, githubCount, prCount, forumCount, dependabotPRs) {
+function saveReport(ranked, githubCount, prCount, forumCount, dependabotPRs, compatFindings) {
   const date      = new Date().toISOString().split('T')[0];
   const clustered = ranked.filter(r => r.cluster.length > 1 || r.score >= 20);
   const isolated  = ranked.filter(r => r.cluster.length === 1 && r.score < 20);
@@ -484,12 +494,69 @@ function saveReport(ranked, githubCount, prCount, forumCount, dependabotPRs) {
     lines.push('');
   }
 
+  if (compatFindings.length > 0) {
+    lines.push('COMPATIBILITY WATCH', '');
+    compatFindings.forEach(f => lines.push(`  [${f.level.toUpperCase()}] ${f.text}`));
+    lines.push('');
+  }
+
   if (dependabotPRs.length > 0) {
     lines.push(`DEPENDABOT PRs (${dependabotPRs.length} open)`, '');
     dependabotPRs.forEach(pr => lines.push(`  #${pr.number}  ${pr.title}`));
   }
 
-  fsys.writeFileSync(path.join(__dirname, '..', 'planning-report.tmp'), lines.join('\n'), 'utf8');
+  const tmpDir = path.join(__dirname, '..', 'tmp');
+  if (!fsys.existsSync(tmpDir)) fsys.mkdirSync(tmpDir);
+  fsys.writeFileSync(path.join(tmpDir, 'planning-report.tmp'), lines.join('\n'), 'utf8');
+}
+
+// ---------------------------------------------------------------------------
+// Fetch: compatibility snapshot (WordPress, PHP EOL, Leaflet)
+// A lightweight summary for the planning report — not a replacement for
+// running compatibility-check.js, which is more thorough and opens issues.
+// ---------------------------------------------------------------------------
+
+async function fetchCompatibility() {
+  log('Fetching compatibility snapshot…');
+  const findings = [];
+
+  try {
+    const wp = await fetchText('https://api.wordpress.org/core/version-check/1.7/');
+    const offers = JSON.parse(wp).offers || [];
+    const stable = offers.find(o => ['upgrade', 'latest'].includes(o.response));
+    const beta   = offers.find(o => o.response === 'development');
+    if (beta)   findings.push({ level: 'watch',  text: `WordPress beta/RC available: ${beta.version} — test before it goes stable` });
+    if (stable) findings.push({ level: 'ok',     text: `WordPress stable: ${stable.version}` });
+  } catch { /* non-fatal */ }
+
+  try {
+    const versions = JSON.parse(await fetchText('https://endoflife.date/api/php.json'));
+    for (const v of versions) {
+      if (!v.eol || v.eol === false) continue;
+      const days = Math.ceil((new Date(v.eol) - Date.now()) / 864e5);
+      if (days < 0)   continue;
+      if (days <= 180) findings.push({ level: 'action', text: `PHP ${v.cycle} EOL in ${days} days (${v.eol}) — verify minimum version requirements` });
+      else if (days <= 365) findings.push({ level: 'watch', text: `PHP ${v.cycle} EOL in ${Math.ceil(days / 30)} months (${v.eol})` });
+    }
+  } catch { /* non-fatal */ }
+
+  try {
+    const latest  = JSON.parse(await fetchText('https://registry.npmjs.org/leaflet/latest'));
+    const pkg     = PLUGIN_PATH ? (() => {
+      try { return JSON.parse(fsys.readFileSync(path.join(PLUGIN_PATH, 'package.json'), 'utf8')); } catch { return null; }
+    })() : null;
+    const current = pkg?.dependencies?.leaflet || pkg?.devDependencies?.leaflet;
+    if (current) {
+      const cur = current.replace(/^[^\d]*/, '');
+      if (parseInt(latest.version) > parseInt(cur)) {
+        findings.push({ level: 'action', text: `Leaflet major update: ${cur} → ${latest.version}` });
+      } else if (latest.version !== cur) {
+        findings.push({ level: 'watch', text: `Leaflet update available: ${cur} → ${latest.version}` });
+      }
+    }
+  } catch { /* non-fatal */ }
+
+  return findings;
 }
 
 // ---------------------------------------------------------------------------
@@ -500,10 +567,16 @@ async function main() {
   console.log(`\n${C.bold}Running planning pipeline…${C.reset}`);
   console.log(`${C.dim}Repo: ${REPO_OWNER}/${REPO_NAME} · Forum slug: ${PLUGIN_SLUG}${C.reset}\n`);
 
-  const [githubIssues, { communityPRs, dependabotPRs }, forumTopics] = await Promise.all([
+  const [
+    githubIssues,
+    { communityPRs, dependabotPRs },
+    forumTopics,
+    compatFindings,
+  ] = await Promise.all([
     fetchGitHubIssues(),
     fetchGitHubPRs(),
     fetchForumTopics(),
+    fetchCompatibility(),
   ]);
 
   const githubCount = githubIssues.length;
@@ -514,7 +587,7 @@ async function main() {
 
   const allItems = [...githubIssues, ...communityPRs, ...forumTopics];
 
-  if (allItems.length === 0 && dependabotPRs.length === 0) {
+  if (allItems.length === 0 && dependabotPRs.length === 0 && compatFindings.length === 0) {
     console.log(`${C.yellow}No items found. Check your credentials and PLUGIN_SLUG.${C.reset}\n`);
     process.exit(1);
   }
@@ -527,8 +600,8 @@ async function main() {
     })
     .sort((a, b) => b.score - a.score);
 
-  printReport(ranked, githubCount, prCount, forumCount, dependabotPRs);
-  saveReport(ranked, githubCount, prCount, forumCount, dependabotPRs);
+  printReport(ranked, githubCount, prCount, forumCount, dependabotPRs, compatFindings);
+  saveReport(ranked, githubCount, prCount, forumCount, dependabotPRs, compatFindings);
 }
 
 main().catch(err => {
