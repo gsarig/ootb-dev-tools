@@ -1,0 +1,13 @@
+{
+  "name": "ootb-dev-tools",
+  "version": "1.0.0",
+  "description": "Tooling and AI agent prompts for the OOTB OpenStreetMap WordPress plugin",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "plan":  "node scripts/planning-pipeline.js",
+    "compat": "node scripts/compatibility-check.js"
+  }
+}

@@ -595,6 +595,9 @@ function printReport(ranked, githubCount, prCount, forumCount, securityAlerts, d
   }
 
   console.log(`${C.dim}Full report saved to tmp/planning-report.tmp${C.reset}\n`);
+  console.log(`${C.bold}Next step:${C.reset}`);
+  console.log(`  Start a Claude Code session and load ${C.bold}agents/planning.md${C.reset} as the prompt.`);
+  console.log(`  The agent will read the report, propose a release plan, and handle triage.\n`);
 }
 
 // ---------------------------------------------------------------------------

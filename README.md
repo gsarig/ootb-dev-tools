@@ -27,9 +27,18 @@ Then fill in `.env`:
 
 > If you clone this repo on a new machine, `PLUGIN_PATH` in particular needs updating — it points to your local plugin directory and will differ per machine.
 
+## Usage
+
+```bash
+npm run plan    # research open issues, PRs, forum topics and generate a planning report
+npm run compat  # check WordPress, PHP, Leaflet, npm and Composer for anything needing attention
+```
+
+Both commands print a next-step prompt at the end telling you which agent to load in Claude Code.
+
 ## Scripts
 
-Run all scripts from the repo root.
+The npm commands above are the intended entry points. The underlying scripts can also be run directly if needed.
 
 ### `node scripts/compatibility-check.js`
 
