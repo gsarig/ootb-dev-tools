@@ -123,9 +123,9 @@ Work through these steps to build the proposal, then format the output as above:
    ---
    ```
 
-**After presenting the proposal in the chat, rewrite `tmp/planning-report.tmp`** as a single coherent document — inverted pyramid style, most actionable content first, pipeline context last. Do not create branches, PRs, or any git operations. Wait for approval before proceeding.
+**After presenting the proposal in the chat, write it to `tmp/planning-proposal.tmp`** — a separate file from the raw pipeline report. Do not overwrite `tmp/planning-report.tmp`. Do not create branches, PRs, or any git operations. Wait for approval before proceeding.
 
-Structure the file in this order:
+Structure the proposal file in this order (inverted pyramid — most actionable content first, pipeline context last):
 
 ```
 PLANNING PROPOSAL — YYYY-MM-DD
