@@ -2,6 +2,24 @@
 
 Tooling and AI agent prompts for the [OOTB OpenStreetMap](https://github.com/gsarig/ootb-openstreetmap) WordPress plugin — planning, compatibility checking, and release automation.
 
+## TL;DR
+
+**Plan the next release:**
+
+```bash
+npm run plan
+```
+
+Then start a Claude Code session and load `agents/planning.md` as the prompt. The agent reads the generated report, proposes a release scope, handles triage, and updates `config/decisions.md` after you approve.
+
+**Run a standalone compatibility check** (monthly or before a release):
+
+```bash
+npm run compat
+```
+
+Checks WordPress, PHP, Leaflet, npm, and Composer. Opens a GitHub issue automatically if anything needs action.
+
 ## Requirements
 
 - **Node.js** 22 LTS or later
@@ -30,8 +48,8 @@ Then fill in `.env`:
 ## Usage
 
 ```bash
-npm run plan    # research open issues, PRs, forum topics and generate a planning report
-npm run compat  # check WordPress, PHP, Leaflet, npm and Composer for anything needing attention
+npm run plan    # compatibility check (dry run) + planning pipeline — full pre-session report
+npm run compat  # standalone compatibility check — opens a GitHub issue if action is needed
 ```
 
 Both commands print a next-step prompt at the end telling you which agent to load in Claude Code.
