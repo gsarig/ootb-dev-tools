@@ -76,6 +76,7 @@ The `config/` folder holds files you may want to edit directly:
 |---|---|
 | `settings.json` | Tuneable constants for the scripts (thresholds, limits) |
 | `blockers.json` | Known upgrade blockers (see below) |
+| `decisions.md` | Accumulated planning decisions — out-of-scope rulings, deferred items, standard replies |
 
 ### `config/settings.json`
 

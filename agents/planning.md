@@ -40,6 +40,39 @@ Using the report as input, produce a release proposal for the developer's approv
    - Rough scope (what needs to change)
    - Any known risks or dependencies
 
+5. **Handle the TRIAGE NEEDED section** — items marked `[?]` are questions or support requests that may not require any code changes. For each one:
+
+   **First, read `config/decisions.md`** to check whether a relevant decision has already been made:
+   - If the item matches an **Out of scope** entry → use that rationale to draft the decline; no further investigation needed
+   - If the item matches a **Deferred** entry → note it as deferred with the existing reason; check whether the revisit condition has been met
+   - If the item matches a **Standard reply** → adapt that reply for the specific context
+
+   **If no prior decision applies, read the plugin codebase** to ground your answer in what actually exists:
+   - Start with the plugin's `README.md` and `readme.txt` for user-facing feature documentation
+   - Check `block.json` (or equivalent) for registered block attributes and supported options
+   - Search relevant source files if the README is inconclusive
+
+   **Then classify the item** and produce a draft reply:
+
+   - **Already supported** — the feature exists; write a ready-to-post reply that explains exactly how to use it, referencing specific block settings or attributes by name
+   - **Out of scope** — the request doesn't fit the plugin's purpose; write a polite decline that briefly explains why and, where possible, suggests an alternative approach
+   - **Valid feature request** — escalate it into the proposed priorities with an implementation brief; no reply needed at this stage
+   - **Needs more info** — write a reply asking the specific question(s) required to move forward
+
+   Format each triage response as a clearly labelled block so the developer can copy-paste it directly:
+
+   ```
+   [TRIAGE: Issue #68 / Forum: topic-slug]
+   Classification: Already supported / Out of scope / Feature request / Needs more info
+
+   Suggested reply:
+   ---
+   Hi, thanks for reaching out! …
+   ---
+   ```
+
+6. **Suggest decisions to record** — after handling triage, list any new entries worth adding to `config/decisions.md`. Format them ready to paste in, using the templates in that file. Do not write to the file yourself — the developer will review and commit what they agree with.
+
 **Stop here and present the proposal. Do not create branches, PRs, or any git operations. Wait for approval before proceeding.**
 
 ## Recording upgrade blockers

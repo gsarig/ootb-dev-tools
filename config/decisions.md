@@ -1,0 +1,58 @@
+# Planning Decisions
+
+Decisions made during planning sessions that inform future triage and scope.
+The planning agent reads this file before classifying TRIAGE NEEDED items.
+
+Add entries here after each planning session. The agent will suggest new entries
+at the end of each run — review them and commit the ones you agree with.
+
+---
+
+## Out of Scope
+
+Items in this section represent deliberate "won't do" decisions. If a similar
+request arrives in the future, the agent will use the rationale below to draft
+a consistent, polite decline rather than re-evaluating from scratch.
+
+<!--
+Template:
+
+### [Short description of the request]
+- **Decision:** Out of scope
+- **Rationale:** [Why the plugin will not support this]
+- **Suggested reply:** [Optional: pre-approved reply text]
+- **Date:** YYYY-MM-DD
+- **Source:** [Issue #N / Forum: topic-slug / —]
+-->
+
+## Deferred
+
+Items that are valid but intentionally pushed to a future release, with the
+reason. The agent will not re-propose these unless circumstances have changed
+(e.g. a blocking dependency has been resolved).
+
+<!--
+Template:
+
+### [Short description]
+- **Decision:** Deferred
+- **Rationale:** [Why it's deferred and what would need to change]
+- **Revisit when:** [Condition or date]
+- **Date:** YYYY-MM-DD
+- **Source:** [Issue #N / —]
+-->
+
+## Standard Replies
+
+Approved reply text for questions that come up repeatedly. The agent will
+adapt these for context rather than copy them verbatim.
+
+<!--
+Template:
+
+### [Topic — e.g. "How to use custom markers"]
+- **Context:** [When to use this reply]
+- **Date:** YYYY-MM-DD
+- **Reply:**
+  > [Reply text here]
+-->

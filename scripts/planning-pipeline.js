@@ -188,6 +188,32 @@ function severityWeight(type) {
   return 2;
 }
 
+// ---------------------------------------------------------------------------
+// Question / triage detection
+// ---------------------------------------------------------------------------
+// Detects items that may only need a reply (e.g. "how do I…", "is it possible…")
+// rather than implementation work. The planning agent makes the final call.
+
+const QUESTION_PATTERNS = [
+  /^how\b/i,        // "How do I…", "How can I…"
+  /^can\b/i,        // "Can I…", "Can the plugin…"
+  /^is it\b/i,      // "Is it possible…"
+  /^is there\b/i,   // "Is there a way…"
+  /^are there\b/i,
+  /^does\b/i,       // "Does it support…"
+  /^do you\b/i,
+  /^will\b/i,       // "Will it work with…"
+  /^would\b/i,
+  /^what\b/i,       // "What is…", "What happens if…"
+  /^where\b/i,
+  /^why\b/i,
+  /\?$/,            // ends with a question mark
+];
+
+function isLikelyQuestion(title) {
+  return QUESTION_PATTERNS.some(p => p.test((title || '').trim()));
+}
+
 function recencyWeight(dateStr) {
   // Exponential decay: full score today, halves every 30 days
   return 10 * Math.exp(-daysAgo(dateStr) / 30);
@@ -236,6 +262,7 @@ async function fetchGitHubIssues() {
           labels:     (i.labels || []).map(l => l.name),
           replyCount: 0,
           keywords:   extractKeywords(text),
+          question:   isLikelyQuestion(i.title),
         };
       });
   } catch (err) {
@@ -385,6 +412,7 @@ async function fetchForumTopics() {
       replyCount: t.replyCount,
       // Use title + excerpt for richer keyword extraction
       keywords:   extractKeywords(`${t.title} ${t.excerpt}`),
+      question:   isLikelyQuestion(t.title),
     }));
 }
 
@@ -434,7 +462,7 @@ function severityColour(sev) {
   return C.dim;
 }
 
-function printReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings) {
+function printReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings, triageItems) {
   const date = new Date().toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
@@ -462,9 +490,11 @@ function printReport(ranked, githubCount, prCount, forumCount, securityAlerts, d
         const prs    = cluster.filter(i => i.source === 'pr');
         const forum  = cluster.filter(i => i.source === 'forum');
         const latest = cluster.reduce((d, i) => (i.date > d ? i.date : d), cluster[0].date);
-        const colour = type === 'Bug' ? C.red : type === 'Feature Request' ? C.cyan : C.yellow;
+        const colour   = type === 'Bug' ? C.red : type === 'Feature Request' ? C.cyan : C.yellow;
+        const hasQ     = cluster.some(i => i.question);
+        const qMarker  = hasQ ? ` ${C.yellow}[?]${C.reset}${C.bold}` : '';
 
-        console.log(`${C.bold}[${idx + 1}] ${colour}${type}${C.reset}${C.bold}: ${title}${C.reset}`);
+        console.log(`${C.bold}[${idx + 1}] ${colour}${type}${C.reset}${C.bold}${qMarker}: ${title}${C.reset}`);
         console.log(`    Score: ${score} | ${cluster.length} item(s) — ${gh.length} issue · ${prs.length} PR · ${forum.length} forum`);
         if (gh.length)   console.log(`    Issue:   ${gh.map(i => i.id).join(', ')}`);
         prs.forEach(i  => console.log(`    PR:      ${i.id} — ${i.title}${i.isDraft ? ' [DRAFT]' : ''} (@${i.author})`));
@@ -550,6 +580,20 @@ function printReport(ranked, githubCount, prCount, forumCount, securityAlerts, d
     console.log();
   }
 
+  if (triageItems.length > 0) {
+    console.log(`${C.dim}${'─'.repeat(56)}${C.reset}`);
+    console.log(`${C.yellow}${C.bold}TRIAGE NEEDED (${triageItems.length})${C.reset}`);
+    console.log(`${C.dim}These items read as questions or support requests.`);
+    console.log(`They may need a reply rather than implementation.${C.reset}\n`);
+    triageItems.forEach(i => {
+      const src = i.source === 'github' ? `Issue ${i.id}` : `Forum`;
+      console.log(`  ${C.yellow}[${src}]${C.reset} ${i.title}`);
+      console.log(`  ${C.dim}${i.url}${C.reset}`);
+      console.log(`  ${C.dim}Action: —${C.reset}`);
+    });
+    console.log();
+  }
+
   console.log(`${C.dim}Full report saved to tmp/planning-report.tmp${C.reset}\n`);
 }
 
@@ -557,7 +601,7 @@ function printReport(ranked, githubCount, prCount, forumCount, securityAlerts, d
 // Save report to file
 // ---------------------------------------------------------------------------
 
-function saveReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings) {
+function saveReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings, triageItems) {
   const date      = new Date().toISOString().split('T')[0];
   const clustered = ranked.filter(r => r.cluster.length > 1 || r.score >= 20);
   const isolated  = ranked.filter(r => r.cluster.length === 1 && r.score < 20);
@@ -578,7 +622,8 @@ function saveReport(ranked, githubCount, prCount, forumCount, securityAlerts, de
       const forum  = cluster.filter(i => i.source === 'forum');
       const latest = cluster.reduce((d, i) => (i.date > d ? i.date : d), cluster[0].date);
 
-      lines.push(`[${idx + 1}] ${type}: ${title}`);
+      const hasQ = cluster.some(i => i.question);
+      lines.push(`[${idx + 1}] ${type}${hasQ ? ' [?]' : ''}: ${title}`);
       lines.push(`    Score: ${score}`);
       if (gh.length)  lines.push(`    Issue:  ${gh.map(i => `${i.id}  ${i.url}`).join('\n            ')}`);
       prs.forEach(i  => lines.push(`    PR:     ${i.id}  ${i.url}${i.isDraft ? ' [DRAFT]' : ''} (@${i.author})`));
@@ -649,6 +694,20 @@ function saveReport(ranked, githubCount, prCount, forumCount, securityAlerts, de
   if (dependabotPRs.length > 0) {
     lines.push(`DEPENDABOT PRs (${dependabotPRs.length} open)`, '');
     dependabotPRs.forEach(pr => lines.push(`  #${pr.number}  ${pr.title}`));
+    lines.push('');
+  }
+
+  if (triageItems.length > 0) {
+    lines.push(`TRIAGE NEEDED (${triageItems.length})`, '');
+    lines.push('These items read as questions or support requests.');
+    lines.push('They may need a reply rather than implementation.', '');
+    triageItems.forEach(i => {
+      const src = i.source === 'github' ? `Issue ${i.id}` : 'Forum';
+      lines.push(`  [${src}] ${i.title}`);
+      lines.push(`  ${i.url}`);
+      lines.push(`  Action: —`);
+      lines.push('');
+    });
   }
 
   const tmpDir = path.join(__dirname, '..', 'tmp');
@@ -741,6 +800,8 @@ async function main() {
     process.exit(1);
   }
 
+  const triageItems = allItems.filter(i => i.question);
+
   const clusters = clusterItems(allItems);
   const ranked   = clusters
     .map(cluster => {
@@ -749,8 +810,8 @@ async function main() {
     })
     .sort((a, b) => b.score - a.score);
 
-  printReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings);
-  saveReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings);
+  printReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings, triageItems);
+  saveReport(ranked, githubCount, prCount, forumCount, securityAlerts, dependabotPRs, compatFindings, triageItems);
 }
 
 main().catch(err => {
