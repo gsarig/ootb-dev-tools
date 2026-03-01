@@ -40,6 +40,12 @@ Using the report as input, produce a release proposal for the developer's approv
    - Rough scope (what needs to change)
    - Any known risks or dependencies
 
+   **Think in terms of the underlying need, not the specific suggestion.** A user's request is a signal, not a spec. Before writing the brief, ask: what is the generic capability being asked for? What feature would satisfy this request *and* similar requests from users with different concrete needs? The implementation should be broadly useful — not a narrow solution to one person's exact wording.
+
+   For example: "show posts with headline and image in a popup" → the underlying need is customisable popup content. The right solution is probably a flexible popup template or content field, not a hard-coded posts layout.
+
+   When a cluster contains multiple sources (issue + forum topic, or multiple forum topics), treat that as evidence that the need is real and recurring. Use the variation across reports to understand the *range* of use cases the solution needs to cover.
+
 5. **Handle the TRIAGE NEEDED section** — items marked `[?]` are questions or support requests that may not require any code changes. For each one:
 
    **First, read `config/decisions.md`** to check whether a relevant decision has already been made:
