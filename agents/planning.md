@@ -123,7 +123,38 @@ Work through these steps to build the proposal, then format the output as above:
    ---
    ```
 
-**Stop here and present the proposal. Do not create branches, PRs, or any git operations. Wait for approval before proceeding.**
+**After presenting the proposal in the chat, rewrite `tmp/planning-report.tmp`** as a single coherent document — inverted pyramid style, most actionable content first, pipeline context last. Do not create branches, PRs, or any git operations. Wait for approval before proceeding.
+
+Structure the file in this order:
+
+```
+PLANNING PROPOSAL — YYYY-MM-DD
+
+PROPOSED TASKS
+[numbered task list]
+
+DETAILS
+[briefs in same order]
+
+TRIAGE
+[suggested replies for each triage item]
+
+DEFERRED
+[items not included in this release and why]
+
+---
+
+PIPELINE CONTEXT
+
+SECURITY ALERTS
+[from the original report]
+
+COMPATIBILITY WATCH
+[from the original report]
+
+DEPENDABOT PRs
+[from the original report]
+```
 
 ## Recording upgrade blockers
 

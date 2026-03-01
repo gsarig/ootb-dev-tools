@@ -41,6 +41,13 @@ Template:
 - **Source:** [Issue #N / —]
 -->
 
+### Frontend marker filtering
+- **Decision:** Deferred
+- **Rationale:** Valid request, but implementing a frontend filter UI is a larger effort without a clear design. Needs a concrete UI model before it can be scoped.
+- **Revisit when:** A concrete UI model exists, or more signals arrive clarifying specific use cases
+- **Date:** 2026-03-01
+- **Source:** Forum: can-map-locations-pins-be-filtered
+
 ## Standard Replies
 
 Approved reply text for questions that come up repeatedly. The agent will
@@ -55,3 +62,9 @@ Template:
 - **Reply:**
   > [Reply text here]
 -->
+
+### Custom fields map — empty popups / customising popup content
+- **Context:** User asks why custom fields map pins have no popup, or how to show post title/image in popups. Often triggered by use of Simple Location plugin (geo_address field empty).
+- **Date:** 2026-03-01
+- **Reply:**
+  > The popup defaults to the `geo_address` meta field, which may be empty if geo-tagged programmatically. Use the `ootb_cf_modal_content` filter hook to customise what appears — it receives the default content and post ID, and should return HTML. See Issue #68 for a full code example showing title + featured image.
