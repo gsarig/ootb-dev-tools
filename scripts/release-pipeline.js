@@ -701,26 +701,29 @@ function main() {
     catch (err) { console.log(`  ${C.yellow}Warning (empty commit): ${err.message}${C.reset}`); }
   }
 
-  // ── 2. Release PR ────────────────────────────────────────────────────────
+  // ── 2. Milestone (needed by both release PR and feature PRs) ─────────────
+  let milestone = null;
+  try { milestone = ensureMilestone(version); }
+  catch (err) { console.log(`  ${C.yellow}Warning: Could not ensure milestone — ${err.message}${C.reset}`); }
+
+  // ── 3. Release PR ────────────────────────────────────────────────────────
   console.log(`\n${C.bold}Release PR${C.reset}`);
   const relBodyFile = tmpWrite(`Draft release PR for version ${version}.`);
   tmpFiles.push(relBodyFile);
   try {
-    const relPR      = ensureDraftPR(relBranch, DEFAULT_BRANCH, `Release ${version}`, relBodyFile);
+    const relPR      = ensureDraftPR(relBranch, DEFAULT_BRANCH, `Release ${version}`, relBodyFile, {
+      milestone: milestone || undefined,
+    });
     summary.releasePR = relPR.url;
   } catch (err) {
     console.log(`  ${C.yellow}Warning: ${err.message}${C.reset}`);
   }
 
-  // ── 3. Feature PRs ───────────────────────────────────────────────────────
+  // ── 4. Feature PRs ───────────────────────────────────────────────────────
   const relTasks = releaseNums.map(n => tasks.find(t => t.number === n)).filter(Boolean);
 
   if (relTasks.length > 0) {
     console.log(`\n${C.bold}Feature PRs (${relTasks.length})${C.reset}`);
-
-    let milestone = null;
-    try { milestone = ensureMilestone(version); }
-    catch (err) { console.log(`  ${C.yellow}Warning: Could not ensure milestone — ${err.message}${C.reset}`); }
 
     // Assign priorities based on position among non-skipped tasks.
     // We need to know the total first, so pre-filter community PRs.
@@ -778,7 +781,7 @@ function main() {
     }
   }
 
-  // ── 4. Backlog issues ────────────────────────────────────────────────────
+  // ── 5. Backlog issues ────────────────────────────────────────────────────
   const backlogTasks = backlogNums.map(n => tasks.find(t => t.number === n)).filter(Boolean);
 
   if (backlogTasks.length > 0) {
