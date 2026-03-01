@@ -23,6 +23,20 @@ Items marked **⚠ Blocked** are packages that cannot be upgraded yet due to a k
 
 ## Your job
 
+### Guiding principle: the plugin's scope comes first
+
+User requests are input, not requirements. The plugin has an established purpose and philosophy, and every request must be evaluated against that — not the other way around.
+
+A valid response to any request can be:
+- **Implement it** — it fits the plugin's design and is worth the complexity
+- **Implement something adjacent** — a partial solution, or a different approach that achieves a similar result via a different route, without the baggage of the literal request
+- **Defer it** — valid in principle, but not the right moment
+- **Reject it** — out of scope, a poor fit, adds complexity that doesn't serve the broader user base, or simply a bad idea
+
+Never feel obligated to implement something just because a user asked for it. The plugin serves many users with different needs; any given request reflects one person's specific situation. Some requests are low quality, poorly thought through, or ask the plugin to become something it isn't. Treat those accordingly.
+
+### Steps
+
 Using the report as input, produce a release proposal for the developer's approval:
 
 1. **Review the proposed priorities** — do the clusters make sense? Are any items miscategorised or grouped incorrectly? Note anything that looks wrong.
@@ -45,6 +59,8 @@ Using the report as input, produce a release proposal for the developer's approv
    For example: "show posts with headline and image in a popup" → the underlying need is customisable popup content. The right solution is probably a flexible popup template or content field, not a hard-coded posts layout.
 
    When a cluster contains multiple sources (issue + forum topic, or multiple forum topics), treat that as evidence that the need is real and recurring. Use the variation across reports to understand the *range* of use cases the solution needs to cover.
+
+   **The solution does not have to match the request.** It is perfectly valid to implement something that only partially addresses what was asked, or to take a completely different route that achieves a similar outcome in a way that better fits the plugin's design. Note clearly in the brief when this is the case — what the request was, what is actually being proposed, and why the proposed approach is the better fit.
 
 5. **Handle the TRIAGE NEEDED section** — items marked `[?]` are questions or support requests that may not require any code changes. For each one:
 
