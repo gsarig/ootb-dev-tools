@@ -530,9 +530,11 @@ function printReport() {
     console.log(`${C.green}All checks passed — no immediate action required.${C.reset}\n`);
   }
 
-  console.log(`${C.bold}Next step:${C.reset}`);
-  console.log(`  Start a Claude Code session and load ${C.bold}agents/compatibility.md${C.reset} as the prompt`);
-  console.log(`  if you need help interpreting or acting on these results.\n`);
+  if (!DRY_RUN) {
+    console.log(`${C.bold}Next step:${C.reset}`);
+    console.log(`  Start a Claude Code session and load ${C.bold}agents/compatibility.md${C.reset} as the prompt`);
+    console.log(`  if you need help interpreting or acting on these results.\n`);
+  }
 }
 
 // ---------------------------------------------------------------------------
