@@ -35,7 +35,7 @@ Run `make lint` and `make phpunit` before declaring done. If tests fail, fix the
 
 ## When you are done
 
-Produce a handoff summary in this exact format and save it to a file called `handoff.tmp`:
+Produce a handoff summary in this exact format and save it to a file called `<!-- HANDOFF_FILE -->`:
 
 ```
 FEATURE:            [one sentence — what this does for the user]
@@ -45,7 +45,7 @@ ASSUMPTIONS MADE:   [anything uncertain or inferred — be honest]
 CHANGELOG DRAFT:    [user-facing one-liner suitable for readme.txt]
 ```
 
-If you cannot write `handoff.tmp` (path unknown), print the summary clearly so it can be copied.
+If you cannot write the file (path unknown), print the summary clearly so it can be copied.
 
 Finally, remind the developer to run `npm run test` as the next step.
 

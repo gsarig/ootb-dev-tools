@@ -594,12 +594,12 @@ function printReport(ranked, githubCount, prCount, forumCount, securityAlerts, d
     console.log();
   }
 
-  console.log(`${C.dim}Raw report saved to tmp/planning-report.tmp${C.reset}`);
-  console.log(`${C.dim}After the agent session, the proposal will be in tmp/planning-proposal.tmp${C.reset}\n`);
+  console.log(`${C.dim}Raw report saved to tmp/planning-report.tmp${C.reset}\n`);
   console.log(`${C.bold}Next step:${C.reset}`);
-  console.log(`  Start a Claude Code session and load ${C.bold}agents/planning.md${C.reset} as the prompt.`);
+  console.log(`  Start a Claude Code session here and send this as your opening message:\n`);
+  console.log(`  ${C.green}Read and follow agents/planning.md${C.reset}\n`);
   console.log(`  The agent will read the report, propose a release plan, and handle triage.`);
-  console.log(`  Review the outcome in ${C.bold}tmp/planning-proposal.tmp${C.reset}\n`);
+  console.log(`  Review the outcome in ${C.bold}tmp/planning-proposal.tmp${C.reset} — then run ${C.bold}npm run execute${C.reset}.\n`);
 }
 
 // ---------------------------------------------------------------------------

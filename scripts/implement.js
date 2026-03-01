@@ -99,11 +99,16 @@ function run(prNumber) {
   if (!fs.existsSync(AGENT_FILE)) die(`Agent file not found: ${AGENT_FILE}`);
   const agentTemplate = fs.readFileSync(AGENT_FILE, 'utf8');
 
+  const handoffFile = `handoff-${prNumber}.tmp`;
   const brief  = `## Brief\n\n${body.trim()}`;
   const prompt = agentTemplate
     .replace(
       /<!-- EXPECTED_BRANCH -->/,
       `**Expected branch:** \`${branch}\``
+    )
+    .replace(
+      /<!-- HANDOFF_FILE -->/,
+      handoffFile
     )
     .replace(
       /## Brief\s*\n+<!-- Paste the feature PR description or task here -->/,
@@ -136,7 +141,7 @@ ${C.bold}Steps${C.reset}
        ${C.green}Read and follow ${outFile}${C.reset}
 
   ${C.cyan}3.${C.reset} The agent will implement the feature, run ${C.bold}make lint${C.reset} and ${C.bold}make phpunit${C.reset},
-     and write a ${C.bold}handoff.tmp${C.reset} file in the plugin directory when done.
+     and write ${C.bold}${handoffFile}${C.reset} in the plugin directory when done.
 
   ${C.cyan}4.${C.reset} Once the session is complete, run the tester:
 

@@ -340,23 +340,18 @@ Output is three-tier: **ACTION REQUIRED** / **MONITOR** / **NO ACTION NEEDED**. 
 
 ### 5.3 Orchestration script
 
-Automates the handoff between Session A and Session B so you don't manually copy-paste between terminal tabs. Built in `ootb-dev-tools`.
+Not implemented. The handoff between Session A and Session B is handled manually:
+`npm run implement` → Session A writes `handoff.tmp` → `npm run test` embeds it automatically.
 
-| Step | Action | Detail |
-|------|--------|--------|
-| 1 | You finish Session A | Implementation complete, you confirm you are happy |
-| 2 | Session A outputs | Structured handoff summary saved to `handoff.tmp` |
-| 3 | Script triggers | `node scripts/orchestrate.js` reads `handoff.tmp`, spawns Session B |
-| 4 | Session B runs | Tests, copy review, reports back automatically |
-| 5 | Script reports | Combined output: test results + copy suggestions + changelog draft |
-| 6 | Cleanup | `handoff.tmp` deleted on success, kept on failure for resume |
+An orchestration script was considered and prototyped but removed — it added no meaningful
+value over the two existing commands since Session B is interactive and cannot be driven
+headlessly.
 
 **Build order for `ootb-dev-tools` scripts:**
 1. `compatibility-check.js` — simplest, no git ops, pure research, proves the approach
 2. `planning-pipeline.js` — research + roadmap, without branch/PR creation first
 3. Extend `planning-pipeline.js` — add branch and PR creation once research is solid
-4. `scripts/orchestrate.js` — handoff automation between sessions
-5. `release-pipeline.js` — ties everything together
+4. `release-pipeline.js` — ties everything together
 
 Note: artifact testing lives in the plugin repo (see §2.2), not here.
 
@@ -378,8 +373,8 @@ Do not try to build everything at once. This is the recommended order, each step
 | 8 | Create ootb-dev-tools | `mkdir`, `git init`, done — empty repo ready for scripts |
 | 9 | compatibility-check.js | First script — self-contained, proves tooling works |
 | 10 | Two-session workflow | Start using it manually — no code needed |
-| 11 | scripts/orchestrate.js | Only after two-session workflow is proven in practice |
-| 12 | planning-pipeline.js | Once the release workflow is running smoothly |
+| 11 | scripts/orchestrate.js | Removed — adds no meaningful value over `npm run test`; session handoff is handled manually |
+| 12 | planning-pipeline.js | Done — research, clustering, scoring, proposal output. Branch/PR creation is handled by release-pipeline.js |
 | 13 | Full pipeline | When all pieces work individually, connect them |
 
 ---
@@ -402,7 +397,7 @@ the Playwright tests, Docker config, and test fixtures all live here. Moving the
 duplicating the test suite or building a fragile cross-repo trigger.
 
 **`ootb-dev-tools/` (tooling repo)**
-- `scripts/orchestrate.js` — session handoff automation
+- ~~`scripts/orchestrate.js`~~ — not implemented; session handoff is manual via `npm run test`
 - `agents/implementer.md` — Session A prompt
 - `agents/tester.md` — Session B prompt
 - `agents/copy-review.md` — copy agent prompt

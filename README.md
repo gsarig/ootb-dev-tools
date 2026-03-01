@@ -4,51 +4,35 @@ Tooling and AI agent prompts for the [OOTB OpenStreetMap](https://github.com/gsa
 
 ## TL;DR
 
-**Plan the next release:**
+**1.** Generate the planning report:
 
 ```bash
 npm run plan
 ```
 
-Then start a Claude Code session and load `agents/planning.md` as the prompt. The agent reads the generated report, proposes a release scope, handles triage, and updates `config/decisions.md` after you approve.
+**2.** Follow the printed instructions to start the planning session. Then review `tmp/planning-proposal.tmp` and decide which tasks go in the upcoming release and which get deferred.
 
-**Evaluate a community PR** (before including it in a release):
-
-Start a Claude Code session and load `agents/pr-review.md` as the prompt. The agent reads the PR diff, evaluates the approach and implementation, and produces a verdict: Merge, Rework, or Replace.
-
-**Execute the release pipeline** (after the proposal is approved):
+**4.** Create the release branch, PRs, and issues from the approved proposal:
 
 ```bash
-npm run execute -- 2.10.0 --release 2,3 --backlog 4 --community 65
+npm run execute -- 2.10.0 --release 2,3 --backlog 4
 ```
 
-Creates the release branch, draft release PR, feature branches and PRs, backlog issues, and retargets any approved community PRs — all in one pass. Use `--dry-run` to preview everything before touching GitHub.
-
-**Implement a feature** (after the release pipeline has run):
+**5.** For each feature, run the implementer and follow the printed instructions:
 
 ```bash
-npm run implement        # pick from a list of open feature PRs
-npm run implement -- 87  # jump straight to PR #87
+npm run implement
 ```
 
-Prints step-by-step instructions and writes a ready-to-use implementer prompt to `tmp/implement-<pr>.tmp`. Start a Claude Code session in the plugin directory and send `Read and follow <path>` as your opening message.
-
-**Test a feature** (after the implementer session writes `handoff.tmp`):
+**6.** Once the implementer session writes `handoff-{pr}.tmp`, run the tester and follow the printed instructions:
 
 ```bash
-npm run test        # pick from a list of open feature PRs
-npm run test -- 87  # jump straight to PR #87
+npm run test
 ```
 
-Same idea — writes a tester prompt to `tmp/test-<pr>.tmp`, with the handoff summary embedded automatically if `handoff.tmp` is found in `PLUGIN_PATH`.
+---
 
-**Run a standalone compatibility check** (monthly or before a release):
-
-```bash
-npm run compat
-```
-
-Checks WordPress, PHP, Leaflet, npm, and Composer. Opens a GitHub issue automatically if anything needs action.
+Run `npm run compat` monthly or before a release to check for compatibility issues.
 
 ## Requirements
 
@@ -152,7 +136,6 @@ Prompt files in `agents/` are loaded into Claude Code sessions to drive specific
 | `implementer.md` | Session A — implements a feature brief |
 | `tester.md` | Session B — writes and runs tests against Session A's work |
 | `copy-review.md` | Reviews translatable strings for consistency and i18n correctness |
-| `cr-fix.md` | Applies or rebuts Copilot code-review suggestions |
 | `compatibility.md` | Runs compatibility checks and interprets the report |
 
 ## Config

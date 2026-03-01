@@ -100,7 +100,7 @@ function run(prNumber) {
   if (!fs.existsSync(AGENT_FILE)) die(`Agent file not found: ${AGENT_FILE}`);
   const agentTemplate = fs.readFileSync(AGENT_FILE, 'utf8');
 
-  const handoffPath   = PLUGIN_PATH ? path.join(PLUGIN_PATH, 'handoff.tmp') : null;
+  const handoffPath   = PLUGIN_PATH ? path.join(PLUGIN_PATH, `handoff-${prNumber}.tmp`) : null;
   const handoffExists = handoffPath && fs.existsSync(handoffPath);
   const handoffNote   = handoffExists
     ? `${C.green}Found:${C.reset} ${handoffPath}`
@@ -144,7 +144,7 @@ ${C.bold}Steps${C.reset}
 
        ${C.green}Read and follow ${outFile}${C.reset}
 ${handoffExists ? '' : `
-  ${C.yellow}Note:${C.reset} handoff.tmp was not found — run the implementer session first,
+  ${C.yellow}Note:${C.reset} handoff-${prNumber}.tmp was not found — run the implementer session first,
      then re-run ${C.bold}npm run test -- ${prNumber}${C.reset} to regenerate the prompt with the handoff included.
 `}
   ${C.cyan}3.${C.reset} The tester will propose test cases and wait for your confirmation
