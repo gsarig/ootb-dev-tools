@@ -47,6 +47,8 @@ CHANGELOG DRAFT:    [user-facing one-liner suitable for readme.txt]
 
 If you cannot write `handoff.tmp` (path unknown), print the summary clearly so it can be copied.
 
+Finally, remind the developer to run `npm run test` as the next step.
+
 ---
 
 ## Brief
