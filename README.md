@@ -12,19 +12,19 @@ npm run plan
 
 **2.** Follow the printed instructions to start the planning session. Then review `tmp/planning-proposal.tmp` and decide which tasks go in the upcoming release and which get deferred.
 
-**4.** Create the release branch, PRs, and issues from the approved proposal:
+**3.** Create the release branch, PRs, and issues from the approved proposal:
 
 ```bash
 npm run execute -- 2.10.0 --release 2,3 --backlog 4
 ```
 
-**5.** For each feature, run the implementer and follow the printed instructions:
+**4.** For each feature, run the implementer and follow the printed instructions:
 
 ```bash
 npm run implement
 ```
 
-**6.** Once the implementer session writes `handoff-{pr}.tmp`, run the tester and follow the printed instructions:
+**5.** Once the implementer session writes `handoff-{pr}.tmp`, run the tester and follow the printed instructions:
 
 ```bash
 npm run test
