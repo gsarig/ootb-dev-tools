@@ -408,7 +408,7 @@ duplicating the test suite or building a fragile cross-repo trigger.
 - `agents/copy-review.md` — copy agent prompt
 - `agents/planning.md` — planning agent prompt
 - `agents/compatibility.md` — compat agent prompt
-- `agents/cr-fix.md` — Copilot CR fix rules and reply format
+- `agents/cr-fix.md` — ~~moved to plugin repo~~ inlined in the copilot-cr-fix workflow
 - `scripts/planning-pipeline.js`
 - `scripts/compatibility-check.js`
 - `scripts/release-pipeline.js`
