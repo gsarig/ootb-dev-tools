@@ -4,7 +4,14 @@ You are implementing a feature for the OOTB OpenStreetMap WordPress plugin.
 
 ## Before you start
 
-Read `CLAUDE.md`. All decisions must comply with it. Do not proceed until you have read it.
+1. **Check the current branch.** Run `git branch --show-current` and confirm it matches
+   the expected branch below. If it does not, stop and tell the developer which branch
+   to check out before continuing.
+
+2. **Read `CLAUDE.md`.** All decisions must comply with it. Do not proceed until you
+   have read it.
+
+<!-- EXPECTED_BRANCH -->
 
 ## Your job
 

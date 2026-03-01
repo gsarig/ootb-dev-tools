@@ -100,10 +100,15 @@ function run(prNumber) {
   const agentTemplate = fs.readFileSync(AGENT_FILE, 'utf8');
 
   const brief  = `## Brief\n\n${body.trim()}`;
-  const prompt = agentTemplate.replace(
-    /## Brief\s*\n+<!-- Paste the feature PR description or task here -->/,
-    brief
-  );
+  const prompt = agentTemplate
+    .replace(
+      /<!-- EXPECTED_BRANCH -->/,
+      `**Expected branch:** \`${branch}\``
+    )
+    .replace(
+      /## Brief\s*\n+<!-- Paste the feature PR description or task here -->/,
+      brief
+    );
 
   if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
   const outFile = path.join(TMP_DIR, `implement-${prNumber}.tmp`);

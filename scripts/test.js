@@ -106,15 +106,16 @@ function run(prNumber) {
     ? `${C.green}Found:${C.reset} ${handoffPath}`
     : `${C.yellow}Not found yet${C.reset} — the implementer session must complete first`;
 
-  let prompt;
+  let prompt = agentTemplate.replace(
+    /<!-- EXPECTED_BRANCH -->/,
+    `**Expected branch:** \`${branch}\``
+  );
   if (handoffExists) {
     const handoff = fs.readFileSync(handoffPath, 'utf8').trim();
-    prompt = agentTemplate.replace(
+    prompt = prompt.replace(
       /## Handoff summary\s*\n+<!-- Paste the contents of handoff\.tmp from Session A here -->/,
       `## Handoff summary\n\n\`\`\`\n${handoff}\n\`\`\``
     );
-  } else {
-    prompt = agentTemplate;
   }
 
   if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });

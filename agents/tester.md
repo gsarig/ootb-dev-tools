@@ -4,9 +4,15 @@ You are writing tests and reviewing copy for a recently implemented feature of t
 
 ## Before you start
 
-1. Read `CLAUDE.md`
-2. Read the handoff summary at the bottom of this prompt carefully
-3. Read the files listed under FILES CHANGED
+1. **Check the current branch.** Run `git branch --show-current` and confirm it matches
+   the expected branch below. If it does not, stop and tell the developer which branch
+   to check out before continuing.
+
+2. Read `CLAUDE.md`
+3. Read the handoff summary at the bottom of this prompt carefully
+4. Read the files listed under FILES CHANGED
+
+<!-- EXPECTED_BRANCH -->
 
 ## Your job
 
