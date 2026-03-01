@@ -92,6 +92,35 @@ Work through these steps to build the proposal, then format the output as above:
 
    **The solution does not have to match the request.** It is perfectly valid to implement something that only partially addresses what was asked, or to take a completely different route that achieves a similar outcome in a way that better fits the plugin's design. Note clearly in the brief when this is the case — what the request was, what is actually being proposed, and why the proposed approach is the better fit.
 
+   **For Community PR tasks, evaluate the PR inline** — do not defer this to a separate session. Follow the evaluation steps from `agents/pr-review.md`:
+
+   - Fetch the PR diff and metadata via `gh pr view` and `gh pr diff`
+   - Read the files it touches from `PLUGIN_PATH` (confirm it is on `main` and clean first)
+   - Evaluate the approach: is this the right solution to the right problem?
+   - Evaluate the implementation: WordPress conventions, JS/block editor patterns, i18n,
+     backwards compatibility, dependency licensing
+   - Produce a verdict: **Merge**, **Rework**, or **Replace**
+
+   Include the verdict and key findings directly in the DETAILS brief for that task. Structure it as:
+
+   ```
+   Verdict: MERGE / REWORK / REPLACE
+
+   Approach: [one paragraph — is this the right solution?]
+
+   Implementation notes: [findings, or "sound" if no issues]
+
+   Review comments:
+   - [Blocking] file:line — specific issue
+   - [Suggestion] file:line — optional improvement
+
+   Execute: --community N  (for Merge/Rework)
+   ```
+
+   If the verdict is **Replace**, omit `Execute` and include instead:
+   - A replacement brief (same format as a regular DETAILS entry)
+   - A draft closing comment for the contributor
+
 5. **Handle the TRIAGE NEEDED section** — items marked `[?]` are questions or support requests that may not require any code changes. For each one:
 
    **First, read `config/decisions.md`** to check whether a relevant decision has already been made:
@@ -123,7 +152,9 @@ Work through these steps to build the proposal, then format the output as above:
    ---
    ```
 
-**After presenting the proposal in the chat, write it to `tmp/planning-proposal.tmp`** — a separate file from the raw pipeline report. Do not overwrite `tmp/planning-report.tmp`. Do not create branches, PRs, or any git operations. Wait for approval before proceeding.
+**Write the proposal to `tmp/planning-proposal.tmp`** — a separate file from the raw pipeline report. Do not overwrite `tmp/planning-report.tmp`. Do not create branches, PRs, or any git operations.
+
+Do not reproduce the proposal in the chat. Once written, tell the developer the file is ready and wait for approval before proceeding.
 
 Structure the proposal file in this order (inverted pyramid — most actionable content first, pipeline context last):
 
@@ -195,4 +226,42 @@ Present the proposed changes clearly — one block per entry, showing exactly wh
 
 ### Step 2 — Hand off to implementation
 
-Phase 2 (not yet built): on approval, `planning-pipeline.js` will create the release branch and draft feature PRs automatically. Until then, the approved proposal becomes the brief for Session A.
+Run the release pipeline to create the release branch, draft release PR, and feature PRs for
+each approved task. Decide which tasks go into the next release and which go to the backlog,
+then pass the task numbers to the script:
+
+```bash
+npm run execute -- <version> --release <nums> --backlog <nums>
+```
+
+For example, if tasks 2 and 3 are for the release and task 4 goes to the backlog:
+
+```bash
+npm run execute -- 2.10.0 --release 2,3 --backlog 4
+```
+
+Add `--dry-run` to preview exactly what the command will create — full PR/issue bodies
+included — without touching GitHub. The report is written to `tmp/release-pipeline-dryrun.tmp`:
+
+```bash
+npm run execute -- 2.10.0 --release 2,3 --backlog 4 --dry-run
+```
+
+The script will:
+- Create (or reuse) the `release/<version>` branch and a draft release PR
+- For each `--release` task: create a feature branch and a draft feature PR with the brief as description
+- For each `--backlog` task: create a GitHub issue with the brief as description
+- Add all items to the GitHub Project (requires `PROJECT_NUMBER` in `.env`)
+- Skip tasks whose title contains a PR reference like `(#NN)` and print a clear notice
+
+Community PRs are evaluated inline during Step 4 of the planning process. The proposal's
+DETAILS section for each community PR will contain the verdict. Pass PR numbers with a
+**Merge** or **Rework** verdict via `--community`:
+
+```bash
+npm run execute -- 2.10.0 --release 2,3 --backlog 4 --community 65
+```
+
+The `--community` flag retargets the PR to the release branch, sets the milestone, posts
+a notice comment, and adds it to the GitHub Project. PRs with a **Replace** verdict are
+not passed via `--community` — the replacement brief becomes a regular `--release` task.

@@ -41,6 +41,13 @@ Template:
 - **Source:** [Issue #N / —]
 -->
 
+### @wordpress/scripts 31.x upgrade
+- **Decision:** Deferred
+- **Rationale:** Genuine MAJOR bump worth evaluating, but not blocking 2.10.0. The npm audit suggestion to downgrade to 19.2.4 is incorrect and should be ignored — the plugin is at 30.x. Security PRs for specific vulnerable packages are handled separately via Dependabot.
+- **Revisit when:** After 2.10.0 ships
+- **Date:** 2026-03-01
+- **Source:** Compatibility check
+
 ### Frontend marker filtering
 - **Decision:** Deferred
 - **Rationale:** Valid request, but implementing a frontend filter UI is a larger effort without a clear design. Needs a concrete UI model before it can be scoped.

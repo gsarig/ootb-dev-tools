@@ -12,6 +12,36 @@ npm run plan
 
 Then start a Claude Code session and load `agents/planning.md` as the prompt. The agent reads the generated report, proposes a release scope, handles triage, and updates `config/decisions.md` after you approve.
 
+**Evaluate a community PR** (before including it in a release):
+
+Start a Claude Code session and load `agents/pr-review.md` as the prompt. The agent reads the PR diff, evaluates the approach and implementation, and produces a verdict: Merge, Rework, or Replace.
+
+**Execute the release pipeline** (after the proposal is approved):
+
+```bash
+npm run execute -- 2.10.0 --release 2,3 --backlog 4 --community 65
+```
+
+Creates the release branch, draft release PR, feature branches and PRs, backlog issues, and retargets any approved community PRs — all in one pass. Use `--dry-run` to preview everything before touching GitHub.
+
+**Implement a feature** (after the release pipeline has run):
+
+```bash
+npm run implement        # pick from a list of open feature PRs
+npm run implement -- 87  # jump straight to PR #87
+```
+
+Prints step-by-step instructions and writes a ready-to-use implementer prompt to `tmp/implement-<pr>.tmp`. Start a Claude Code session in the plugin directory and send `Read and follow <path>` as your opening message.
+
+**Test a feature** (after the implementer session writes `handoff.tmp`):
+
+```bash
+npm run test        # pick from a list of open feature PRs
+npm run test -- 87  # jump straight to PR #87
+```
+
+Same idea — writes a tester prompt to `tmp/test-<pr>.tmp`, with the handoff summary embedded automatically if `handoff.tmp` is found in `PLUGIN_PATH`.
+
 **Run a standalone compatibility check** (monthly or before a release):
 
 ```bash
@@ -40,8 +70,10 @@ Then fill in `.env`:
 | `GITHUB_TOKEN` | Personal access token with `repo` scope |
 | `REPO_OWNER` | GitHub username (default: `gsarig`) |
 | `REPO_NAME` | Plugin repo name (default: `ootb-openstreetmap`) |
+| `DEFAULT_BRANCH` | Default branch of the plugin repo — `main` or `master` (default: `main`) |
 | `PLUGIN_SLUG` | WordPress.org slug (usually same as `REPO_NAME`) |
-| `PLUGIN_PATH` | **Absolute path** to local plugin checkout — required for npm/Composer checks |
+| `PLUGIN_PATH` | **Absolute path** to local plugin checkout — required for npm/Composer checks and PR review |
+| `PROJECT_NUMBER` | GitHub Project number — enables automatic project item creation in the release pipeline (optional) |
 
 > If you clone this repo on a new machine, `PLUGIN_PATH` in particular needs updating — it points to your local plugin directory and will differ per machine.
 
@@ -50,9 +82,16 @@ Then fill in `.env`:
 ```bash
 npm run plan    # compatibility check (dry run) + planning pipeline — full pre-session report
 npm run compat  # standalone compatibility check — opens a GitHub issue if action is needed
+npm run execute -- <version> --release 1,2 --backlog 3 --community 65
+                # create release branch, PRs, issues, and retarget community PRs
+                # add --dry-run to preview without touching GitHub
+npm run implement        # pick a feature PR and get implementation instructions
+npm run implement -- 87  # jump straight to PR #87
+npm run test             # pick a feature PR and get testing instructions
+npm run test -- 87       # jump straight to PR #87
 ```
 
-Both commands print a next-step prompt at the end telling you which agent to load in Claude Code.
+`npm run plan` and `npm run compat` print a next-step prompt at the end telling you which agent to load in Claude Code.
 
 ## Scripts
 
@@ -82,13 +121,34 @@ Researches and proposes the next release scope:
 
 Output goes to the terminal and `tmp/planning-report.tmp`. Feed that file to the Planning Agent (see `agents/planning.md`).
 
+### `node scripts/release-pipeline.js`
+
+Bridges the approved planning proposal to GitHub artefacts:
+
+- Creates (or reuses) the `release/<version>` branch and a draft release PR
+- For each `--release` task: creates a feature branch and a draft PR with the implementation brief as the description, assigns label, milestone, and GitHub Project item
+- For each `--backlog` task: creates a GitHub issue with the brief as the description
+- For each `--community` PR: retargets the base branch to the release branch, posts a notice comment, sets the milestone, and adds a project item
+- Skips `[Community PR]` tasks in `--release` and `--backlog` with a clear notice — those require `agents/pr-review.md` first
+
+Reads `tmp/planning-proposal.tmp`. Add `--dry-run` to write a full preview to `tmp/release-pipeline-dryrun.tmp` without touching GitHub.
+
+### `node scripts/implement.js [pr-number]`
+
+Prints step-by-step instructions for implementing a feature PR and writes a combined agent prompt (implementer instructions + PR brief) to `tmp/implement-<pr>.tmp`. Without a PR number, lists open feature PRs targeting the current release branch and prompts for a selection.
+
+### `node scripts/test.js [pr-number]`
+
+Prints step-by-step instructions for the tester session and writes a combined agent prompt (tester instructions + handoff summary) to `tmp/test-<pr>.tmp`. Automatically embeds `handoff.tmp` from `PLUGIN_PATH` if it exists. Without a PR number, shows the same interactive picker as `implement.js`.
+
 ## Agents
 
 Prompt files in `agents/` are loaded into Claude Code sessions to drive specific workflows:
 
 | File | Purpose |
 |---|---|
-| `planning.md` | Release planning — reads the pipeline report, proposes scope |
+| `planning.md` | Release planning — reads the pipeline report, proposes scope, triggers the execute command after approval |
+| `pr-review.md` | Community PR evaluation — reads the diff and codebase, recommends Merge / Rework / Replace |
 | `implementer.md` | Session A — implements a feature brief |
 | `tester.md` | Session B — writes and runs tests against Session A's work |
 | `copy-review.md` | Reviews translatable strings for consistency and i18n correctness |
