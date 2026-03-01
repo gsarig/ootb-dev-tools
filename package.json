@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "plan":  "node scripts/planning-pipeline.js",
+    "plan":  "node scripts/compatibility-check.js --dry-run && node scripts/planning-pipeline.js",
     "compat": "node scripts/compatibility-check.js"
   }
 }

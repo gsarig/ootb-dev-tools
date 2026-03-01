@@ -521,7 +521,11 @@ function printReport() {
   const actionCount = findings.filter(f => f.tier === T.ACTION).length;
   if (actionCount > 0) {
     console.log(`${C.red}${C.bold}${actionCount} item(s) require action.${C.reset}`);
-    console.log(`${C.dim}Opening a GitHub issue in ${REPO_OWNER}/${REPO_NAME}…${C.reset}\n`);
+    if (DRY_RUN) {
+      console.log(`${C.yellow}  Dry run — skipping GitHub issue creation. Run \`npm run compat\` to open an issue.${C.reset}\n`);
+    } else {
+      console.log(`${C.dim}Opening a GitHub issue in ${REPO_OWNER}/${REPO_NAME}…${C.reset}\n`);
+    }
   } else {
     console.log(`${C.green}All checks passed — no immediate action required.${C.reset}\n`);
   }
@@ -586,8 +590,10 @@ function log(msg) {
   console.log(`${C.dim}  ${msg}${C.reset}`);
 }
 
+const DRY_RUN = process.argv.includes('--dry-run');
+
 async function main() {
-  console.log(`\n${C.bold}Running compatibility checks…${C.reset}`);
+  console.log(`\n${C.bold}Running compatibility checks…${DRY_RUN ? ` ${C.yellow}(dry run — no GitHub issue will be created)${C.reset}` : C.reset}`);
   console.log(
     `${C.dim}Repo: ${REPO_OWNER}/${REPO_NAME}` +
     (PLUGIN_PATH ? ` | Plugin: ${PLUGIN_PATH}` : ' | No PLUGIN_PATH set (npm/composer checks skipped)') +
@@ -605,7 +611,7 @@ async function main() {
 
   printReport();
 
-  if (findings.some(f => f.tier === T.ACTION)) {
+  if (!DRY_RUN && findings.some(f => f.tier === T.ACTION)) {
     await createGitHubIssue();
   }
 }
