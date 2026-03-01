@@ -35,9 +35,39 @@ A valid response to any request can be:
 
 Never feel obligated to implement something just because a user asked for it. The plugin serves many users with different needs; any given request reflects one person's specific situation. Some requests are low quality, poorly thought through, or ask the plugin to become something it isn't. Treat those accordingly.
 
+### Output format
+
+Present the proposal in this order — summary first, detail second:
+
+---
+
+**PROPOSED TASKS**
+
+A numbered list of everything recommended for the roadmap. This is the deliverable — the developer should be able to read this section alone and know exactly what is being proposed.
+
+Each task on one line:
+
+```
+1. [Bug] Short, GitHub-issue-style title — one sentence on why it matters
+2. [Feature] Short title — one sentence on why it matters
+3. [Maintenance] Bump package X → Y.Z — fixes N vulnerabilities (HIGH)
+```
+
+Types: `Bug` · `Feature` · `Improvement` · `Maintenance` · `Community PR`
+
+Do not include deferred or rejected items here. Do not include triage items unless they were escalated to a feature request.
+
+---
+
+**DETAILS**
+
+The reasoning behind each decision, in the same numbered order as the task list above.
+
+---
+
 ### Steps
 
-Using the report as input, produce a release proposal for the developer's approval:
+Work through these steps to build the proposal, then format the output as above:
 
 1. **Review the proposed priorities** — do the clusters make sense? Are any items miscategorised or grouped incorrectly? Note anything that looks wrong.
 
