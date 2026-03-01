@@ -374,7 +374,7 @@ Do not try to build everything at once. This is the recommended order, each step
 | 4 | Fix release.yml + build-zip.sh | Done — build steps added, dev vendor no longer deployed |
 | 5 | Artifact test CI job | Done — docker-compose.artifact.yml, wp-artifact-setup.sh, artifact-playwright job in ci.yml |
 | 6 | Add artifact note to CLAUDE.md | Done |
-| 7 | GitHub Project | One-time manual setup in GitHub UI |
+| 7 | GitHub Project | Done — OOTB Roadmap (project #1), all custom fields set up |
 | 8 | Create ootb-dev-tools | `mkdir`, `git init`, done — empty repo ready for scripts |
 | 9 | compatibility-check.js | First script — self-contained, proves tooling works |
 | 10 | Two-session workflow | Start using it manually — no code needed |
