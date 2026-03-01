@@ -71,8 +71,6 @@ Using the report as input, produce a release proposal for the developer's approv
    ---
    ```
 
-6. **Suggest decisions to record** — after handling triage, list any new entries worth adding to `config/decisions.md`. Format them ready to paste in, using the templates in that file. Do not write to the file yourself — the developer will review and commit what they agree with.
-
 **Stop here and present the proposal. Do not create branches, PRs, or any git operations. Wait for approval before proceeding.**
 
 ## Recording upgrade blockers
@@ -96,5 +94,22 @@ When a dependency upgrade is attempted but causes breakage (e.g. a major Leaflet
 To **remove** a blocker once the issue is resolved, delete its key from `config/blockers.json`.
 
 ## After approval
+
+### Step 1 — Update decisions.md
+
+Before handing off to implementation, update `config/decisions.md` to reflect what was decided in this session.
+
+**Read the current `config/decisions.md`**, then derive the minimal set of changes needed:
+
+- **Add** a new entry for any item newly classified as out of scope, deferred, or given a standard reply
+- **Update** an existing entry if circumstances have changed (e.g. a deferred item's revisit condition is now met, or an out-of-scope ruling has been reversed because the item is being implemented)
+- **Remove** an entry if it's no longer relevant (e.g. a deferred feature is now in scope and being built)
+- **Leave unchanged** anything not touched by this session — do not reformat or reorganise entries that aren't being modified
+
+Present the proposed changes clearly — one block per entry, showing exactly what would be added, updated, or removed. If no changes are needed, say so explicitly.
+
+**Wait for sign-off before writing.** Once the developer confirms, apply the changes to `config/decisions.md`.
+
+### Step 2 — Hand off to implementation
 
 Phase 2 (not yet built): on approval, `planning-pipeline.js` will create the release branch and draft feature PRs automatically. Until then, the approved proposal becomes the brief for Session A.
