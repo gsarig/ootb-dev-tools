@@ -29,6 +29,8 @@ List every test case you plan to write:
 - Which file it belongs in (`BlockSnapshotTest`, `BlockAttributeSnapshotTest`, `QuerySnapshotTest`, or a new file if justified)
 - Whether it requires a new snapshot fixture
 
+If no new tests are needed (e.g. the change is a config update, dependency bump, or non-functional patch), explain why and skip to Step 4.
+
 **Stop here and wait for confirmation before writing anything.**
 
 ### Step 3 — Write tests
