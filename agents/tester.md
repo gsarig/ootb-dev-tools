@@ -8,9 +8,17 @@ You are writing tests and reviewing copy for a recently implemented feature of t
    the expected branch below. If it does not, stop and tell the developer which branch
    to check out before continuing.
 
-2. Read `CLAUDE.md`
-3. Read the handoff summary at the bottom of this prompt carefully
-4. Read the files listed under FILES CHANGED
+2. **Sync with the base branch.** Pull the latest `master` and merge it into the feature
+   branch so you are working from an up-to-date base:
+   ```bash
+   git fetch origin
+   git merge origin/master
+   ```
+   If there are merge conflicts, stop and report them before proceeding.
+
+3. Read `CLAUDE.md`
+4. Read the handoff summary at the bottom of this prompt carefully
+5. Read the files listed under FILES CHANGED
 
 <!-- EXPECTED_BRANCH -->
 
