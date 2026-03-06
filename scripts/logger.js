@@ -36,7 +36,7 @@ function error(msg) { log('error', msg); }
 
 function formatError(err) {
   if (err instanceof Error) {
-    return err.message + (err.stack ? '\n' + err.stack : '');
+    return err.stack || err.message;
   } else {
     return String(err);
   }
