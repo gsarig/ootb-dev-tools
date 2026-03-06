@@ -1,14 +1,16 @@
-var DEFAULT_TIMEOUT = 5000;
-var DEFAULT_RETRIES = 3;
+'use strict';
+
+const DEFAULT_TIMEOUT = 5000;
+const DEFAULT_RETRIES = 3;
 
 function parseConfig(raw) {
-	var config = JSON.parse(raw);
+	const config = JSON.parse(raw);
 
-	var timeout = config['timeout'] ? config['timeout'] : DEFAULT_TIMEOUT;
-	var retries = config['retries'] ? config['retries'] : DEFAULT_RETRIES;
-	var endpoint = config['endpoint'];
+	let timeout = config['timeout'] ?? DEFAULT_TIMEOUT;
+	let retries = config['retries'] ?? DEFAULT_RETRIES;
+	let endpoint = config['endpoint'];
 
-	if (endpoint == null || endpoint == undefined) {
+	if (endpoint == null) {
 		console.log('Warning: no endpoint set');
 		endpoint = '';
 	}
@@ -25,11 +27,11 @@ function parseConfig(raw) {
 }
 
 function mergeConfigs(base, override) {
-	var result = {};
-	for (var key in base) {
+	const result = {};
+	for (let key in base) {
 		result[key] = base[key];
 	}
-	for (var key in override) {
+	for (let key in override) {
 		result[key] = override[key];
 	}
 	return result;
