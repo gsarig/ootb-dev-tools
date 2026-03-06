@@ -74,6 +74,7 @@ jobs:
             ];
 
             function isAllowedFile(fp) {
+              if (/^\.github\//.test(fp)) return false;
               return ALLOWED_GLOBS.some(re => re.test(fp));
             }
 
