@@ -123,6 +123,9 @@ jobs:
                   system: `You are a code fix agent. You have been given Copilot code review comments on a pull request.
             Evaluate each comment and either apply the fix or explain why you are skipping it.
             You must reply to every comment.
+
+            When multiple comments address overlapping or related changes in the same file, apply them as a single unified fix and note this in each relevant reply rather than applying them redundantly.
+
             Respond with valid JSON only:
             { "commits": [{ "path": "...", "content": "..." }], "replies": [{ "comment_id": 123, "body": "..." }], "summary": "..." }`,
                   messages: [{ role: 'user', content: JSON.stringify(userMsgObj) }],
@@ -140,6 +143,50 @@ jobs:
               }
               const { commits = [], replies = [], summary: s = '(no summary)' } = result;
               return { commits, replies, summary: s.slice(0, 2000) };
+            }
+
+            async function resolveThreads(commentIds) {
+              const idSet = new Set(commentIds);
+              let threads;
+              try {
+                const result = await github.graphql(`
+                  query($owner: String!, $repo: String!, $pr: Int!) {
+                    repository(owner: $owner, name: $repo) {
+                      pullRequest(number: $pr) {
+                        reviewThreads(first: 100) {
+                          nodes {
+                            id
+                            isResolved
+                            comments(first: 1) {
+                              nodes { databaseId }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                `, { owner, repo, pr: prNumber });
+                threads = result.repository.pullRequest.reviewThreads.nodes;
+              } catch (e) {
+                core.warning(`Could not fetch review threads: ${e.message}`);
+                return;
+              }
+              for (const thread of threads) {
+                if (thread.isResolved) continue;
+                const firstId = thread.comments.nodes[0]?.databaseId;
+                if (!firstId || !idSet.has(firstId)) continue;
+                try {
+                  await github.graphql(`
+                    mutation($threadId: ID!) {
+                      resolveReviewThread(input: { threadId: $threadId }) {
+                        thread { isResolved }
+                      }
+                    }
+                  `, { threadId: thread.id });
+                } catch (e) {
+                  core.warning(`Could not resolve thread ${thread.id}: ${e.message}`);
+                }
+              }
             }
 
             if (!process.env.ANTHROPIC_API_KEY) {
@@ -194,6 +241,7 @@ jobs:
               }
 
               // Commit and push if any files were changed
+              let commitSha = '';
               if (writtenFiles.length > 0) {
                 for (const fp of writtenFiles) run('git', ['add', fp]);
 
@@ -206,6 +254,7 @@ jobs:
                   fs.writeFileSync(msgFile, `fixup: apply Copilot CR suggestions\n\n${summary}`);
                   const commitR = run('git', ['commit', '-F', msgFile]);
                   if (!commitR.ok) throw new Error(`git commit failed: ${commitR.output}`);
+                  commitSha = run('git', ['rev-parse', 'HEAD']).output.trim();
                   const pushR = run('git', ['push']);
                   if (!pushR.ok) throw new Error(`git push failed: ${pushR.output}`);
                 }
@@ -220,9 +269,16 @@ jobs:
                 } catch (e) { core.warning(`Reply failed for ${comment_id}: ${e.message}`); }
               }
 
+              // Resolve all Copilot review threads we replied to
+              await resolveThreads(comments.map(c => c.id));
+
+              const commitLine = commitSha
+                ? `Applied and committed: [view commit](https://github.com/${owner}/${repo}/commit/${commitSha})`
+                : 'No code changes were committed.';
+
               await github.rest.issues.createComment({
                 owner, repo, issue_number: prNumber,
-                body: `🤖 **Copilot CR Auto-Fix**\n\n${summary}\n\nSee individual comment replies for details.\n<!-- copilot-cr-fix:${reviewId} -->`,
+                body: `🤖 **Copilot CR Auto-Fix**\n\n${summary}\n\n${commitLine} See individual comment replies for details.\n<!-- copilot-cr-fix:${reviewId} -->`,
               });
 
             } catch (error) {
@@ -238,10 +294,11 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const runUrl = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const prNumber = parseInt(context.payload.inputs.pr_number, 10);
             try {
               await github.rest.issues.createComment({
                 owner: context.repo.owner, repo: context.repo.repo,
-                issue_number: context.payload.pull_request.number,
+                issue_number: prNumber,
                 body: `🤖 **Copilot CR Auto-Fix** encountered an error. Check the [workflow run](${runUrl}) for details.`,
               });
             } catch (_) {}
