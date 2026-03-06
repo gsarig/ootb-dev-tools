@@ -17,6 +17,7 @@ jobs:
       github.event.review.user.type == 'Bot' &&
       github.event.pull_request.draft == false &&
       github.event.pull_request.user.login == 'gsarig' &&
+      github.event.pull_request.head.repo.fork == false &&
       github.event.pull_request.base.ref != 'master' &&
       github.event.pull_request.base.ref != 'main' &&
       contains(github.event.pull_request.labels.*.name, 'ai-fix')
@@ -183,7 +184,6 @@ jobs:
                 files,
               });
 
-              const claimedPaths = new Set(commits.map(c => c.path));
               const writtenFiles = applyFixes(commits, changedPaths);
               core.info(`Files written: ${writtenFiles.length}`);
 
@@ -206,7 +206,7 @@ jobs:
                   const commitR = run('git', ['commit', '-F', msgFile]);
                   if (!commitR.ok) throw new Error(`git commit failed: ${commitR.output}`);
                   const pushR = run('git', ['push']);
-                  if (!pushR.ok) core.error(`git push failed: ${pushR.output}`);
+                  if (!pushR.ok) throw new Error(`git push failed: ${pushR.output}`);
                 }
               } else {
                 core.info('No file changes — skipping commit.');
