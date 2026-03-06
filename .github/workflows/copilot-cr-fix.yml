@@ -7,12 +7,13 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   fix:
     runs-on: ubuntu-latest
     if: >-
-      github.event.review.user.login == 'Copilot' &&
+      github.event.review.user.login == 'copilot-pull-request-reviewer[bot]' &&
       github.event.review.user.type == 'Bot' &&
       github.event.pull_request.draft == false &&
       github.event.pull_request.user.login == 'gsarig' &&
@@ -51,6 +52,36 @@ jobs:
             const repo     = context.repo.repo;
             const prNumber = context.payload.pull_request.number;
             const reviewId = context.payload.review.id;
+
+            // Allowlist of file glob patterns safe to send to external API.
+            // Only files matching at least one pattern will have their contents transmitted.
+            const ALLOWED_GLOBS = [
+              /\.md$/i,
+              /\.js$/i,
+              /\.ts$/i,
+              /\.json$/i,
+              /\.yml$/i,
+              /\.yaml$/i,
+              /\.php$/i,
+              /\.css$/i,
+              /\.html?$/i,
+            ];
+
+            // Patterns that look like secrets — redact matching lines before sending.
+            const SECRET_PATTERNS = [
+              /(?:api[_-]?key|secret|password|token|auth)\s*[=:]\s*\S+/i,
+              /-----BEGIN [A-Z ]+KEY-----/,
+            ];
+
+            function isAllowedFile(fp) {
+              return ALLOWED_GLOBS.some(re => re.test(fp));
+            }
+
+            function redactSecrets(content) {
+              return content.split('\n').map(line =>
+                SECRET_PATTERNS.some(re => re.test(line)) ? '<redacted>' : line
+              ).join('\n');
+            }
 
             function run(cmd, args) {
               const r = spawnSync(cmd, args, { cwd: ws, encoding: 'utf8' });
@@ -124,8 +155,14 @@ jobs:
               const files = [];
               for (const fp of [...new Set(comments.map(c => c.path))]) {
                 if (!changedPaths.has(fp)) continue;
-                try { files.push({ path: fp, content: fs.readFileSync(path.join(ws, fp), 'utf8') }); }
-                catch (e) { core.warning(`Could not read ${fp}: ${e.message}`); }
+                if (!isAllowedFile(fp)) {
+                  core.warning(`Skipping file contents for ${fp}: not in allowed file types allowlist`);
+                  continue;
+                }
+                try {
+                  const raw = fs.readFileSync(path.join(ws, fp), 'utf8');
+                  files.push({ path: fp, content: redactSecrets(raw) });
+                } catch (e) { core.warning(`Could not read ${fp}: ${e.message}`); }
               }
 
               core.info('Calling Anthropic API...');
@@ -141,12 +178,19 @@ jobs:
               // Commit and push if any files were changed
               if (writtenFiles.length > 0) {
                 for (const fp of writtenFiles) run('git', ['add', fp]);
-                const msgFile = path.join(ws, '.git', '_copilot_fix_msg');
-                fs.writeFileSync(msgFile, `fixup: apply Copilot CR suggestions\n\n${summary}`);
-                const commitR = run('git', ['commit', '-F', msgFile]);
-                if (!commitR.ok) throw new Error(`git commit failed: ${commitR.output}`);
-                const pushR = run('git', ['push']);
-                if (!pushR.ok) core.error(`git push failed: ${pushR.output}`);
+
+                // Only commit if there are actually staged changes
+                const diffR = run('git', ['diff', '--cached', '--quiet']);
+                if (diffR.ok) {
+                  core.info('No staged changes after applying fixes — skipping commit.');
+                } else {
+                  const msgFile = path.join(ws, '.git', '_copilot_fix_msg');
+                  fs.writeFileSync(msgFile, `fixup: apply Copilot CR suggestions\n\n${summary}`);
+                  const commitR = run('git', ['commit', '-F', msgFile]);
+                  if (!commitR.ok) throw new Error(`git commit failed: ${commitR.output}`);
+                  const pushR = run('git', ['push']);
+                  if (!pushR.ok) core.error(`git push failed: ${pushR.output}`);
+                }
               } else {
                 core.info('No file changes — skipping commit.');
               }
