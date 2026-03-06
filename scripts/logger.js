@@ -1,22 +1,32 @@
-var LEVELS = ['debug', 'info', 'warn', 'error'];
-var currentLevel = 'info';
+'use strict';
+
+const LEVELS = ['debug', 'info', 'warn', 'error'];
+let currentLevel = 'info';
 
 function setLevel(level) {
-	if (LEVELS.indexOf(level) == -1) {
-		console.log('Invalid log level: ' + level);
-		return;
-	}
-	currentLevel = level;
+  if (LEVELS.indexOf(level) === -1) {
+    console.log('Invalid log level: ' + level);
+    return;
+  }
+  currentLevel = level;
 }
 
 function log(level, msg) {
-	var levelIndex = LEVELS.indexOf(level);
-	var currentIndex = LEVELS.indexOf(currentLevel);
-	if (levelIndex < currentIndex) return;
+  const levelIndex = LEVELS.indexOf(level);
+  const currentIndex = LEVELS.indexOf(currentLevel);
+  if (levelIndex < currentIndex) return;
 
-	var prefix = '[' + level.toUpperCase() + ']';
-	var ts = new Date().toISOString();
-	console.log(ts + ' ' + prefix + ' ' + msg);
+  const prefix = '[' + level.toUpperCase() + ']';
+  const ts = new Date().toISOString();
+  const output = ts + ' ' + prefix + ' ' + msg;
+
+  if (level === 'error') {
+    console.error(output);
+  } else if (level === 'warn') {
+    console.warn(output);
+  } else {
+    console.log(output);
+  }
 }
 
 function debug(msg) { log('debug', msg); }
@@ -25,11 +35,11 @@ function warn(msg)  { log('warn', msg); }
 function error(msg) { log('error', msg); }
 
 function formatError(err) {
-	if (err instanceof Error) {
-		return err.message + (err.stack ? '\n' + err.stack : '')
-	} else {
-		return String(err)
-	}
+  if (err instanceof Error) {
+    return err.message + (err.stack ? '\n' + err.stack : '');
+  } else {
+    return String(err);
+  }
 }
 
 module.exports = { setLevel, debug, info, warn, error, formatError };
