@@ -1,8 +1,17 @@
 name: Copilot CR Auto-Fix
 
 on:
-  pull_request_review:
-    types: [submitted]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to process'
+        required: true
+      review_id:
+        description: 'Copilot review ID to process'
+        required: true
+      head_ref:
+        description: 'Head branch ref to check out'
+        required: true
 
 permissions:
   contents: write
@@ -12,21 +21,12 @@ permissions:
 jobs:
   fix:
     runs-on: ubuntu-latest
-    if: >-
-      github.event.review.user.login == 'Copilot' &&
-      github.event.review.user.type == 'Bot' &&
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.user.login == 'gsarig' &&
-      github.event.pull_request.head.repo.fork == false &&
-      github.event.pull_request.base.ref != 'master' &&
-      github.event.pull_request.base.ref != 'main' &&
-      contains(github.event.pull_request.labels.*.name, 'ai-fix')
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.inputs.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure git identity
@@ -51,8 +51,8 @@ jobs:
             const ws       = process.env.GITHUB_WORKSPACE;
             const owner    = context.repo.owner;
             const repo     = context.repo.repo;
-            const prNumber = context.payload.pull_request.number;
-            const reviewId = context.payload.review.id;
+            const prNumber = parseInt(context.payload.inputs.pr_number, 10);
+            const reviewId = parseInt(context.payload.inputs.review_id, 10);
 
             // Allowlist of file path regex patterns safe to send to external API.
             // Only files matching at least one pattern will have their contents transmitted.
@@ -222,7 +222,7 @@ jobs:
 
               await github.rest.issues.createComment({
                 owner, repo, issue_number: prNumber,
-                body: `🤖 **Copilot CR Auto-Fix**\n\n${summary}\n\nSee individual comment replies for details.`,
+                body: `🤖 **Copilot CR Auto-Fix**\n\n${summary}\n\nSee individual comment replies for details.\n<!-- copilot-cr-fix:${reviewId} -->`,
               });
 
             } catch (error) {
