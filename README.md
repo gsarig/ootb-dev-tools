@@ -176,3 +176,4 @@ Both scripts will annotate any finding for a blocked package with the reason and
 ## Docs
 
 - [`docs/implementation-plan.md`](docs/implementation-plan.md) — full design spec and phased build plan
+# Test change for Copilot CR auto-fix
