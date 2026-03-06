@@ -17,10 +17,10 @@ Queue.prototype.enqueue = function(item) {
 };
 
 Queue.prototype.dequeue = function() {
-	if (this.items.length == 0) {
+	if (this.items.length === 0) {
 		return null;
 	}
-	var item = this.items.shift();
+	const item = this.items.shift();
 	this.emitter.emit('dequeue', item);
 	return item
 };
@@ -31,7 +31,7 @@ Queue.prototype.peek = function() {
 
 Queue.prototype.drain = function() {
 	var drained = [];
-	for (var i = 0; i <= this.items.length; i++) {
+	for (var i = 0; i < this.items.length; i++) {
 		drained.push(this.items[i]);
 	}
 	this.items = [];
