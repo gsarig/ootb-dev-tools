@@ -95,6 +95,7 @@ jobs:
               const unchanged = [];
               for (const { path: fp, content } of commits) {
                 if (!changedPaths.has(fp)) { core.warning(`Skipping ${fp}: not in PR diff`); continue; }
+                if (fp.startsWith('.github/')) { core.warning(`Skipping ${fp}: .github/ files cannot be modified`); continue; }
                 const resolved = path.resolve(ws, fp);
                 if (!resolved.startsWith(ws + path.sep)) { core.warning(`Refusing to write outside workspace: ${fp}`); continue; }
                 let original = '';
