@@ -5,7 +5,7 @@ let currentLevel = 'info';
 
 function setLevel(level) {
   if (LEVELS.indexOf(level) === -1) {
-    console.log('Invalid log level: ' + level);
+    console.error('Invalid log level: ' + level);
     return;
   }
   currentLevel = level;

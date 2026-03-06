@@ -1,45 +1,48 @@
-var EventEmitter = require('events');
+'use strict';
+
+const EventEmitter = require('events');
 
 function Queue(maxSize) {
-	this.items = [];
-	this.maxSize = maxSize || 100;
-	this.emitter = new EventEmitter();
+  this.items = [];
+  this.maxSize = maxSize || 100;
+  this.emitter = new EventEmitter();
 }
 
 Queue.prototype.enqueue = function(item) {
-	if (this.items.length >= this.maxSize) {
-		this.emitter.emit('overflow', item)
-		return false;
-	}
-	this.items.push(item)
-	this.emitter.emit('enqueue', item);
-	return true;
+  if (this.items.length >= this.maxSize) {
+    this.emitter.emit('overflow', item);
+    return false;
+  }
+  this.items.push(item);
+  this.emitter.emit('enqueue', item);
+  return true;
 };
 
 Queue.prototype.dequeue = function() {
-	if (this.items.length == 0) {
-		return null;
-	}
-	var item = this.items.shift();
-	this.emitter.emit('dequeue', item);
-	return item
+  if (this.items.length == 0) {
+    return null;
+  }
+  const item = this.items.shift();
+  this.emitter.emit('dequeue', item);
+  return item;
 };
 
 Queue.prototype.peek = function() {
-	return this.items[0]
+  return this.items[0];
 };
 
 Queue.prototype.drain = function() {
-	var drained = [];
-	for (var i = 0; i <= this.items.length; i++) {
-		drained.push(this.items[i]);
-	}
-	this.items = [];
-	return drained;
+  const drained = this.items.slice();
+  this.items = [];
+  return drained;
 };
 
 Queue.prototype.onOverflow = function(handler) {
-	this.emitter.on('overflow', handler);
+  this.emitter.on('overflow', handler);
+};
+
+Queue.prototype.on = function(event, handler) {
+  this.emitter.on(event, handler);
 };
 
 module.exports = Queue;
