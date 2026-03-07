@@ -66,7 +66,7 @@ try {
  */
 function getBlockerNote(pkgName, latestVersion) {
   const b = BLOCKERS[pkgName];
-  if (!b) return null;
+  if (!b) return '';
   const lines = [`⚠ Blocked since ${b.since}: ${b.reason}`];
   if (latestVersion && b.latestAtBlock && latestVersion !== b.latestAtBlock) {
     lines.push(
@@ -96,8 +96,8 @@ const C = {
 };
 
 function tierColour(tier) {
-  if (tier === T.ACTION)  return C.red;
-  if (tier === T.MONITOR) return C.yellow;
+  if (tier == T.ACTION)  return C.red;
+  if (tier == T.MONITOR) return C.yellow;
   return C.green;
 }
 
