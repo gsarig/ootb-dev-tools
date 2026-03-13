@@ -234,10 +234,20 @@ then pass the task numbers to the script:
 npm run execute -- <version> --release <nums> --backlog <nums>
 ```
 
+**Before running, confirm the version number is correct:**
+
+```bash
+gh api repos/gsarig/ootb-openstreetmap/releases/latest --jq '.tag_name'
+```
+
+The version you pass must be **greater than** this tag. If the planning proposal names a version
+that matches the latest published release, increment it (e.g. `2.10.0` → `2.11.0`) and note the
+change. The script will also enforce this and abort if you pass an already-published version.
+
 For example, if tasks 2 and 3 are for the release and task 4 goes to the backlog:
 
 ```bash
-npm run execute -- 2.10.0 --release 2,3 --backlog 4
+npm run execute -- 2.11.0 --release 2,3 --backlog 4
 ```
 
 Add `--dry-run` to preview exactly what the command will create — full PR/issue bodies

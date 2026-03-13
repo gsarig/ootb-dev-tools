@@ -191,6 +191,15 @@ const LABEL_COLORS = {
 
 function typeToLabel(type) { return LABEL_MAP[type] || 'enhancement'; }
 
+/** "2.10.0" → "2.11.0" */
+function bumpMinor(v) {
+  const parts = v.split('.').map(Number);
+  if (parts.length < 2 || parts.some(isNaN)) return v;
+  parts[1] += 1;
+  if (parts.length >= 3) parts[2] = 0;
+  return parts.join('.');
+}
+
 /**
  * Priority by position in the approved list.
  * pos is 1-based. total is the count of non-skipped release tasks.
@@ -663,6 +672,23 @@ function main() {
   const proposalPath = path.join(ROOT, 'tmp', 'planning-proposal.tmp');
   if (!fs.existsSync(proposalPath)) {
     die('tmp/planning-proposal.tmp not found. Run the planning pipeline first.');
+  }
+
+  // ── Guard: reject versions that are already published ──────────────────
+  try {
+    const latestRelease = ghJson(['api', `repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`]);
+    const latestTag     = String(latestRelease.tag_name || '').replace(/^v/, '');
+    const versionClean  = version.replace(/^v/, '');
+    if (latestTag === versionClean) {
+      die(
+        `Version ${version} has already been published as a release.\n` +
+        `Latest tag: ${latestRelease.tag_name}\n` +
+        `Pass the next version number instead (e.g. bump the minor: ${bumpMinor(versionClean)}).`
+      );
+    }
+  } catch (err) {
+    // No releases yet or network error — proceed without blocking
+    console.warn(`${C.yellow}Warning: could not verify latest release — ${err.message}${C.reset}`);
   }
 
   const tasks = parseProposal(proposalPath);
