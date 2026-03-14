@@ -57,6 +57,16 @@ If you cannot write the file (path unknown), print the summary clearly so it can
 
 Finally, remind the developer to run `npm run test` as the next step.
 
+### Flag recurring Copilot patterns
+While addressing Copilot review comments, track any complaint that Copilot raises
+more than once across review rounds (e.g. version numbers, intentional design decisions).
+After the PR is merged or all threads are resolved, ask:
+> "Copilot flagged [X] repeatedly. Should we add a rule to `.github/copilot-instructions.md`
+> to prevent it from raising this again?"
+
+Only add a rule if the pattern is concrete and the flag is genuinely unhelpful. Skip
+if Copilot's concern was legitimate and the fix was correct.
+
 ---
 
 ## Brief
