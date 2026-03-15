@@ -52,7 +52,7 @@ Then fill in `.env`:
 | Variable | Description |
 |---|---|
 | `GITHUB_TOKEN` | Personal access token with `repo` scope |
-| `REPO_OWNER` | GitHub username (default: `gsarig`) |
+| `REPO_OWNER` | Your GitHub username |
 | `REPO_NAME` | Plugin repo name (default: `ootb-openstreetmap`) |
 | `DEFAULT_BRANCH` | Default branch of the plugin repo — `main` or `master` (default: `main`) |
 | `PLUGIN_SLUG` | WordPress.org slug (usually same as `REPO_NAME`) |

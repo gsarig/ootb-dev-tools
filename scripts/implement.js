@@ -30,7 +30,7 @@ const TMP_DIR     = path.join(ROOT, 'tmp');
 const AGENT_FILE  = path.join(ROOT, 'agents', 'implementer.md');
 
 const env         = loadEnv(ENV_FILE);
-const REPO_OWNER  = env.REPO_OWNER  || 'gsarig';
+const REPO_OWNER  = env.REPO_OWNER  || '';
 const REPO_NAME   = env.REPO_NAME   || 'ootb-openstreetmap';
 const PLUGIN_PATH = (env.PLUGIN_PATH || '').replace(/\/$/, '');
 

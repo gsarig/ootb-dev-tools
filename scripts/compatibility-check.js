@@ -31,7 +31,7 @@ const CONFIG_DIR  = path.join(__dirname, '..', 'config');
 const ENV_FILE    = path.join(__dirname, '..', '.env');
 const env         = loadEnv(ENV_FILE);
 
-const REPO_OWNER  = env.REPO_OWNER  || 'gsarig';
+const REPO_OWNER  = env.REPO_OWNER  || '';
 const REPO_NAME   = env.REPO_NAME   || 'ootb-openstreetmap';
 const PLUGIN_PATH = env.PLUGIN_PATH || null;
 

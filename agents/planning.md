@@ -237,7 +237,7 @@ npm run execute -- <version> --release <nums> --backlog <nums>
 **Before running, confirm the version number is correct:**
 
 ```bash
-gh api repos/gsarig/ootb-openstreetmap/releases/latest --jq '.tag_name'
+gh api repos/$REPO_OWNER/$REPO_NAME/releases/latest --jq '.tag_name'
 ```
 
 The version you pass must be **greater than** this tag. If the planning proposal names a version

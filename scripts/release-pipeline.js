@@ -29,7 +29,7 @@ const ROOT           = path.join(__dirname, '..');
 const ENV_FILE       = path.join(ROOT, '.env');
 const env            = loadEnv(ENV_FILE);
 
-const REPO_OWNER      = env.REPO_OWNER     || 'gsarig';
+const REPO_OWNER      = env.REPO_OWNER     || '';
 const REPO_NAME       = env.REPO_NAME      || 'ootb-openstreetmap';
 const DEFAULT_BRANCH  = env.DEFAULT_BRANCH || 'main';
 const PROJECT_NUMBER  = env.PROJECT_NUMBER ? parseInt(env.PROJECT_NUMBER, 10) : null;
