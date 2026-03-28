@@ -100,7 +100,7 @@ function run(prNumber) {
   if (!fs.existsSync(AGENT_FILE)) die(`Agent file not found: ${AGENT_FILE}`);
   const agentTemplate = fs.readFileSync(AGENT_FILE, 'utf8');
 
-  const handoffPath   = PLUGIN_PATH ? path.join(PLUGIN_PATH, `handoff-${prNumber}.tmp`) : null;
+  const handoffPath   = path.join(TMP_DIR, `handoff-${prNumber}.tmp`);
   const handoffExists = handoffPath && fs.existsSync(handoffPath);
   const handoffNote   = handoffExists
     ? `${C.green}Found:${C.reset} ${handoffPath}`

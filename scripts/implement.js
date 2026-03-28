@@ -100,7 +100,7 @@ function run(prNumber) {
   if (!fs.existsSync(AGENT_FILE)) die(`Agent file not found: ${AGENT_FILE}`);
   const agentTemplate = fs.readFileSync(AGENT_FILE, 'utf8');
 
-  const handoffFile = `handoff-${prNumber}.tmp`;
+  const handoffFile = path.join(TMP_DIR, `handoff-${prNumber}.tmp`);
   const brief  = `## Brief\n\n${body.trim()}`;
   const prompt = agentTemplate
     .replace(
