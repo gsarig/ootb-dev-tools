@@ -731,12 +731,34 @@ async function fetchCompatibility() {
   const findings = [];
 
   try {
-    const wp = await fetchText('https://api.wordpress.org/core/version-check/1.7/');
-    const offers = JSON.parse(wp).offers || [];
-    const stable = offers.find(o => ['upgrade', 'latest'].includes(o.response));
-    const beta   = offers.find(o => o.response === 'development');
-    if (beta)   findings.push({ level: 'watch',  text: `WordPress beta/RC available: ${beta.version} — test before it goes stable` });
-    if (stable) findings.push({ level: 'ok',     text: `WordPress stable: ${stable.version}` });
+    // Fetch stable from the default channel; fetch pre-release from the beta channel,
+    // because development builds only appear there and not in the default feed.
+    const [wpDefault, wpBeta] = await Promise.all([
+      fetchText('https://api.wordpress.org/core/version-check/1.7/'),
+      fetchText('https://api.wordpress.org/core/version-check/1.7/?channel=beta'),
+    ]);
+    const defaultOffers = JSON.parse(wpDefault).offers || [];
+    const betaOffers    = JSON.parse(wpBeta).offers    || [];
+    const stable = defaultOffers.find(o => ['upgrade', 'latest'].includes(o.response));
+    const beta   = betaOffers.find(o => o.response === 'development');
+    if (beta) {
+      const stableVer   = stable?.version || '0.0';
+      const betaVer     = beta.version; // e.g. "7.0-RC1", "7.0-beta3"
+      const isMajorBump = parseInt(betaVer, 10) > parseInt(stableVer, 10);
+      const isRC        = /\brc\d*/i.test(betaVer);
+      if (isMajorBump && isRC) {
+        findings.push({
+          level: 'action',
+          text:  `WordPress ${betaVer} RC — major version imminent; verify compatibility before shipping`,
+        });
+      } else {
+        findings.push({
+          level: 'watch',
+          text:  `WordPress ${betaVer} available — test before it goes stable`,
+        });
+      }
+    }
+    if (stable) findings.push({ level: 'ok', text: `WordPress stable: ${stable.version}` });
   } catch { /* non-fatal */ }
 
   try {
