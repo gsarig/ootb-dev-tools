@@ -10,7 +10,7 @@ Tooling and AI agent prompts for the [OOTB OpenStreetMap](https://github.com/gsa
 npm run plan
 ```
 
-**2.** Follow the printed instructions to start the planning session. Then review `tmp/planning-proposal.tmp` and decide which tasks go in the upcoming release and which get deferred.
+**2.** Follow the printed instructions to start the planning session. Then review `tmp/planning-proposal.md` and decide which tasks go in the upcoming release and which get deferred.
 
 **3.** Create the release branch, PRs, and issues from the approved proposal:
 
@@ -103,7 +103,7 @@ Researches and proposes the next release scope:
 - Fetches open Dependabot security alerts
 - Pulls a compatibility snapshot (WordPress, PHP EOL, Leaflet)
 
-Output goes to the terminal and `tmp/planning-report.tmp`. Feed that file to the Planning Agent (see `agents/planning.md`).
+Output goes to the terminal and `tmp/planning-report.md`. Feed that file to the Planning Agent (see `agents/planning.md`).
 
 ### `node scripts/release-pipeline.js`
 
@@ -115,7 +115,7 @@ Bridges the approved planning proposal to GitHub artefacts:
 - For each `--community` PR: retargets the base branch to the release branch, posts a notice comment, sets the milestone, and adds a project item
 - Skips `[Community PR]` tasks in `--release` and `--backlog` with a clear notice — those require `agents/pr-review.md` first
 
-Reads `tmp/planning-proposal.tmp`. Add `--dry-run` to write a full preview to `tmp/release-pipeline-dryrun.tmp` without touching GitHub.
+Reads `tmp/planning-proposal.md`. Add `--dry-run` to write a full preview to `tmp/release-pipeline-dryrun.tmp` without touching GitHub.
 
 ### `node scripts/implement.js [pr-number]`
 

@@ -12,7 +12,7 @@
  *   node scripts/release-pipeline.js <version> --release <nums> --backlog <nums>
  *   npm run execute -- 2.10.0 --release 1,2,3 --backlog 4,5
  *
- * Reads:  tmp/planning-proposal.tmp
+ * Reads:  tmp/planning-proposal.md
  * Config: .env  (REPO_OWNER, REPO_NAME, PROJECT_NUMBER)
  */
 
@@ -120,7 +120,7 @@ function parseArgs() {
 // ─── Proposal parsing ──────────────────────────────────────────────────────
 
 /**
- * Parse tmp/planning-proposal.tmp.
+ * Parse tmp/planning-proposal.md.
  * Returns: Array<{ number, type, title, oneLiner, brief }>
  */
 function parseProposal(filePath) {
@@ -129,7 +129,7 @@ function parseProposal(filePath) {
 
   // ── PROPOSED TASKS — up to first "---" separator
   const tasksSec = text.match(/^PROPOSED TASKS\s*\n([\s\S]*?)^---/m);
-  if (!tasksSec) throw new Error('No PROPOSED TASKS section found in planning-proposal.tmp');
+  if (!tasksSec) throw new Error('No PROPOSED TASKS section found in planning-proposal.md');
 
   for (const line of tasksSec[1].split('\n')) {
     // Format: N. [Type] Title — one-liner
@@ -669,9 +669,9 @@ function runDryRun(tasks, version, releaseNums, backlogNums, communityPRs, date)
 function main() {
   const { version, releaseNums, backlogNums, communityPRs, dryRun } = parseArgs();
 
-  const proposalPath = path.join(ROOT, 'tmp', 'planning-proposal.tmp');
+  const proposalPath = path.join(ROOT, 'tmp', 'planning-proposal.md');
   if (!fs.existsSync(proposalPath)) {
-    die('tmp/planning-proposal.tmp not found. Run the planning pipeline first.');
+    die('tmp/planning-proposal.md not found. Run the planning pipeline first.');
   }
 
   // ── Guard: reject versions that are already published ──────────────────

@@ -27,7 +27,7 @@ context for the review.
 
 **3. Read `.env`** to get `REPO_OWNER`, `REPO_NAME`, and `PLUGIN_PATH`.
 
-**4. Read `tmp/planning-proposal.tmp`** if it exists. The planning agent may have already written
+**4. Read `tmp/planning-proposal.md`** if it exists. The planning agent may have already written
 a brief about this PR — use it as background context, not as a verdict.
 
 ---

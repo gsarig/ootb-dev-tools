@@ -10,7 +10,7 @@
  * draft feature PRs with full descriptions.
  *
  * Requires: Node 18+, gh CLI (authenticated)
- * Output:   terminal report + planning-report.tmp
+ * Output:   terminal report + planning-report.md
  */
 
 'use strict';
@@ -594,12 +594,12 @@ function printReport(ranked, githubCount, prCount, forumCount, securityAlerts, d
     console.log();
   }
 
-  console.log(`${C.dim}Raw report saved to tmp/planning-report.tmp${C.reset}\n`);
+  console.log(`${C.dim}Raw report saved to tmp/planning-report.md${C.reset}\n`);
   console.log(`${C.bold}Next step:${C.reset}`);
   console.log(`  Start a Claude Code session here and send this as your opening message:\n`);
   console.log(`  ${C.green}Read and follow agents/planning.md${C.reset}\n`);
   console.log(`  The agent will read the report, propose a release plan, and handle triage.`);
-  console.log(`  Review the outcome in ${C.bold}tmp/planning-proposal.tmp${C.reset} — then run ${C.bold}npm run execute${C.reset}.\n`);
+  console.log(`  Review the outcome in ${C.bold}tmp/planning-proposal.md${C.reset} — then run ${C.bold}npm run execute${C.reset}.\n`);
 }
 
 // ---------------------------------------------------------------------------
@@ -717,7 +717,7 @@ function saveReport(ranked, githubCount, prCount, forumCount, securityAlerts, de
 
   const tmpDir = path.join(__dirname, '..', 'tmp');
   if (!fsys.existsSync(tmpDir)) fsys.mkdirSync(tmpDir);
-  fsys.writeFileSync(path.join(tmpDir, 'planning-report.tmp'), lines.join('\n'), 'utf8');
+  fsys.writeFileSync(path.join(tmpDir, 'planning-report.md'), lines.join('\n'), 'utf8');
 }
 
 // ---------------------------------------------------------------------------

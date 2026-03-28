@@ -10,7 +10,7 @@ Run the planning pipeline from the `ootb-dev-tools` directory:
 node scripts/planning-pipeline.js
 ```
 
-Then read `tmp/planning-report.tmp`. That file is your primary source of truth.
+Then read `tmp/planning-report.md`. That file is your primary source of truth.
 
 ## What the report contains
 
@@ -152,7 +152,7 @@ Work through these steps to build the proposal, then format the output as above:
    ---
    ```
 
-**Write the proposal to `tmp/planning-proposal.tmp`** — a separate file from the raw pipeline report. Do not overwrite `tmp/planning-report.tmp`. Do not create branches, PRs, or any git operations.
+**Write the proposal to `tmp/planning-proposal.md`** — a separate file from the raw pipeline report. Do not overwrite `tmp/planning-report.md`. Do not create branches, PRs, or any git operations.
 
 Do not reproduce the proposal in the chat. Once written, tell the developer the file is ready and wait for approval before proceeding.
 
