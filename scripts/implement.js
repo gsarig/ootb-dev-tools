@@ -85,16 +85,17 @@ function run(prNumber) {
     pr = ghJson([
       'pr', 'view', String(prNumber),
       '--repo', `${REPO_OWNER}/${REPO_NAME}`,
-      '--json', 'title,body,headRefName,url',
+      '--json', 'title,body,headRefName,baseRefName,url',
     ]);
   } catch (err) {
     die(`Could not fetch PR #${prNumber}: ${err.message}`);
   }
 
-  const branch = pr.headRefName;
-  const title  = pr.title;
-  const body   = pr.body;
-  const prUrl  = pr.url;
+  const branch     = pr.headRefName;
+  const baseBranch = pr.baseRefName || 'master';
+  const title      = pr.title;
+  const body       = pr.body;
+  const prUrl      = pr.url;
 
   if (!fs.existsSync(AGENT_FILE)) die(`Agent file not found: ${AGENT_FILE}`);
   const agentTemplate = fs.readFileSync(AGENT_FILE, 'utf8');
@@ -105,6 +106,10 @@ function run(prNumber) {
     .replace(
       /<!-- EXPECTED_BRANCH -->/,
       `**Expected branch:** \`${branch}\``
+    )
+    .replace(
+      /<!-- BASE_BRANCH -->/g,
+      baseBranch
     )
     .replace(
       /<!-- HANDOFF_FILE -->/,

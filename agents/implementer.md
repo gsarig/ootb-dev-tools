@@ -8,11 +8,11 @@ You are implementing a feature for the OOTB OpenStreetMap WordPress plugin.
    the expected branch below. If it does not, stop and tell the developer which branch
    to check out before continuing.
 
-2. **Sync with the base branch.** Pull the latest `master` and merge it into the feature
-   branch so you are working from an up-to-date base:
+2. **Sync with the base branch.** Pull the latest `<!-- BASE_BRANCH -->` and merge it into
+   the feature branch so you are working from an up-to-date base:
    ```bash
    git fetch origin
-   git merge origin/master
+   git merge origin/<!-- BASE_BRANCH -->
    ```
    If there are merge conflicts, stop and report them before proceeding.
 
