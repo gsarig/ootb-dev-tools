@@ -145,18 +145,24 @@ function parseProposal(filePath) {
     }
   }
 
-  // ── DETAILS — between "DETAILS" and the next "---" separator
-  const detailsSec = text.match(/^DETAILS\s*\n([\s\S]*?)^---/m);
-  if (detailsSec) {
-    // Split on lines that start a new numbered task block ("N. [")
-    const blocks = detailsSec[1].split(/(?=^\d+\. \[)/m).filter(b => b.trim());
+  // ── DETAILS — slice from the "DETAILS" header to the "TRIAGE" header (or end
+  // of file). Index-based slicing avoids the "---" task separators inside the
+  // section from being misread as the section boundary.
+  const detailsIdx = text.search(/^DETAILS\b/m);
+  const triageIdx  = text.search(/^TRIAGE\b/m);
+  if (detailsIdx !== -1) {
+    const detailsBody = text.slice(detailsIdx, triageIdx !== -1 ? triageIdx : undefined);
+    // Split on "---" separators between individual task blocks
+    const blocks = detailsBody.split(/\n---\n/).filter(b => b.trim());
     for (const block of blocks) {
-      const hm = block.match(/^(\d+)\. /);
+      // Match "**N. Title**" or "N. [Type] Title" task header formats
+      const hm = block.match(/^(?:\*\*)?(\d+)\. /m);
       if (!hm) continue;
       const task = tasks.find(t => t.number === parseInt(hm[1], 10));
       if (task) {
-        // Drop the header line; the rest is the implementation brief
-        task.brief = block.split('\n').slice(1).join('\n').trim();
+        const lines  = block.split('\n');
+        const hdrIdx = lines.findIndex(l => /^(?:\*\*)?(\d+)\. /.test(l));
+        task.brief   = lines.slice(hdrIdx + 1).join('\n').trim();
       }
     }
   }
