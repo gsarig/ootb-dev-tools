@@ -228,7 +228,13 @@ Present the proposed changes clearly — one block per entry, showing exactly wh
 
 Run the release pipeline to create the release branch, draft release PR, and feature PRs for
 each approved task. Decide which tasks go into the next release and which go to the backlog,
-then pass the task numbers to the script:
+then pass the task numbers to the script.
+
+**Only pass net-new tasks.** If some tasks already have open PRs targeting the release branch
+(e.g. the planning report surfaced PRs the developer had already opened), do not pass those
+task numbers to `--release` — the pipeline would create duplicate branches and PRs. The
+script reuses an existing release branch and PR automatically; the already-open feature PRs
+need no intervention.
 
 ```bash
 npm run execute -- <version> --release <nums> --backlog <nums>
